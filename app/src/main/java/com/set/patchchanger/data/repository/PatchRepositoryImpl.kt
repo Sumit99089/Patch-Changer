@@ -5,45 +5,26 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.set.patchchanger.data.local.BankDao
 import com.set.patchchanger.data.local.BankEntity
-import com.set.patchchanger.data.local.MidiManager
 import com.set.patchchanger.data.local.PageDao
 import com.set.patchchanger.data.local.PageEntity
 import com.set.patchchanger.data.local.PatchSlotDao
 import com.set.patchchanger.data.local.PatchSlotEntity
-import com.set.patchchanger.data.local.SampleDao
-import com.set.patchchanger.data.local.SampleEntity
-import com.set.patchchanger.data.local.SettingsDataStore
-import com.set.patchchanger.domain.model.AppSettings
-import com.set.patchchanger.domain.model.AppTheme
 import com.set.patchchanger.domain.model.Bank
 import com.set.patchchanger.domain.model.DisplayNameType
-import com.set.patchchanger.domain.model.MidiConnectionState
 import com.set.patchchanger.domain.model.Page
 import com.set.patchchanger.domain.model.PatchData
 import com.set.patchchanger.domain.model.PatchSlot
-import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.domain.model.SearchResult
-import com.set.patchchanger.domain.repository.MidiRepository
 import com.set.patchchanger.domain.repository.PatchRepository
-import com.set.patchchanger.domain.repository.SampleRepository
-import com.set.patchchanger.domain.repository.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Implementation of PatchRepository using Room Database.
- *
- * This class bridges the domain layer (business logic) with
- * the data layer (Room database). It:
- * - Converts between domain models and database entities
- * - Handles database operations
- * - Provides Flow-based reactive data
  */
 @Singleton
 class PatchRepositoryImpl @Inject constructor(
@@ -53,12 +34,6 @@ class PatchRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ) : PatchRepository {
 
-    /**
-     * Observes complete patch data structure.
-     *
-     * combine() operator merges three Flows into one.
-     * When any source Flow emits, the combined Flow emits.
-     */
     override fun observePatchData(): Flow<PatchData> = combine(
         patchSlotDao.observeAllSlots(),
         bankDao.observeAllBanks(),
@@ -74,10 +49,6 @@ class PatchRepositoryImpl @Inject constructor(
         return buildPatchData(slots, banks, pages)
     }
 
-    /**
-     * Builds PatchData from database entities.
-     * Groups slots by bank and page.
-     */
     private fun buildPatchData(
         slots: List<PatchSlotEntity>,
         banks: List<BankEntity>,
@@ -128,25 +99,19 @@ class PatchRepositoryImpl @Inject constructor(
     }
 
     override suspend fun resetToDefaults() {
-        // Clear existing data
         patchSlotDao.deleteAll()
         bankDao.deleteAll()
         pageDao.deleteAll()
 
-        // Generate default data
         val defaultSlots = generateDefaultSlots()
         val defaultBanks = (0..7).map { BankEntity(it, "User ${it + 1}") }
         val defaultPages = (0..15).map { PageEntity(it, "Page ${it + 1}") }
 
-        // Insert defaults
         patchSlotDao.insertSlots(defaultSlots)
         bankDao.insertBanks(defaultBanks)
         pageDao.insertPages(defaultPages)
     }
 
-    /**
-     * Generates 2048 default slots (8 banks × 16 pages × 16 slots).
-     */
     private fun generateDefaultSlots(): List<PatchSlotEntity> {
         val colors = getDefaultColors()
         val slots = mutableListOf<PatchSlotEntity>()
@@ -160,7 +125,7 @@ class PatchRepositoryImpl @Inject constructor(
                             id = id,
                             name = "${slot + 1}",
                             description = "Slot ${slot + 1}",
-                            selected = (id == 0), // First slot selected
+                            selected = (id == 0),
                             color = colors[slot % colors.size],
                             msb = 62,
                             lsb = page,
@@ -174,7 +139,6 @@ class PatchRepositoryImpl @Inject constructor(
                 }
             }
         }
-
         return slots
     }
 
@@ -184,19 +148,16 @@ class PatchRepositoryImpl @Inject constructor(
             val type = object : TypeToken<Map<String, Any>>() {}.type
             val data: Map<String, Any> = gson.fromJson(jsonData, type)
 
-            // Extract and convert data
             @Suppress("UNCHECKED_CAST")
             val patchDataMap = data["patchData"] as? Map<String, Any>
             val banksData = data["banks"] as? List<String>
             val pagesData = data["pages"] as? List<String>
 
             if (patchDataMap != null && banksData != null && pagesData != null) {
-                // Clear existing
                 patchSlotDao.deleteAll()
                 bankDao.deleteAll()
                 pageDao.deleteAll()
 
-                // Convert and insert
                 val slots = mutableListOf<PatchSlotEntity>()
                 patchDataMap.forEach { (_, bankData) ->
                     @Suppress("UNCHECKED_CAST")
@@ -212,7 +173,6 @@ class PatchRepositoryImpl @Inject constructor(
                 patchSlotDao.insertSlots(slots)
                 bankDao.insertBanks(banksData.mapIndexed { i, name -> BankEntity(i, name) })
                 pageDao.insertPages(pagesData.mapIndexed { i, name -> PageEntity(i, name) })
-
                 true
             } else {
                 false
@@ -226,7 +186,6 @@ class PatchRepositoryImpl @Inject constructor(
     override suspend fun exportToJson(): String {
         val patchData = getPatchData()
         val gson = Gson()
-
         val exportData = mapOf(
             "patchData" to buildExportMap(patchData),
             "banks" to patchData.bankNames,
@@ -237,13 +196,11 @@ class PatchRepositoryImpl @Inject constructor(
             "currentTranspose" to 0,
             "theme" to "black"
         )
-
         return gson.toJson(exportData)
     }
 
     private fun buildExportMap(patchData: PatchData): Map<String, Map<String, Any>> {
         val result = mutableMapOf<String, Map<String, Any>>()
-
         patchData.banks.forEachIndexed { index, bank ->
             result[patchData.bankNames[index]] = mapOf(
                 "name" to patchData.bankNames[index],
@@ -252,7 +209,6 @@ class PatchRepositoryImpl @Inject constructor(
                 }
             )
         }
-
         return result
     }
 
@@ -315,11 +271,6 @@ class PatchRepositoryImpl @Inject constructor(
     )
 }
 
-/**
- * Extension functions to convert between domain models and database entities.
- *
- * These are in a separate section for clarity and reusability.
- */
 private fun PatchSlotEntity.toDomainModel() = PatchSlot(
     id = id,
     name = name,
@@ -354,160 +305,4 @@ private fun PatchSlot.toEntity() = PatchSlotEntity(
         DisplayNameType.CUSTOM -> "custom"
     },
     assignedSample = assignedSample
-)
-
-/**
- * Settings Repository Implementation
- */
-@Singleton
-class SettingsRepositoryImpl @Inject constructor(
-    private val settingsDataStore: SettingsDataStore
-) : SettingsRepository {
-
-    override fun observeSettings(): Flow<AppSettings> = settingsDataStore.settingsFlow
-
-    override suspend fun getSettings(): AppSettings {
-        return settingsDataStore.settingsFlow.first()
-    }
-
-    override suspend fun updateSettings(settings: AppSettings) {
-        settingsDataStore.updateSettings(settings)
-    }
-
-    override suspend fun updateBankIndex(index: Int) {
-        settingsDataStore.updateBankIndex(index)
-    }
-
-    override suspend fun updatePageIndex(index: Int) {
-        settingsDataStore.updatePageIndex(index)
-    }
-
-    override suspend fun updateMidiChannel(channel: Int) {
-        settingsDataStore.updateMidiChannel(channel)
-    }
-
-    override suspend fun updateTranspose(transpose: Int) {
-        settingsDataStore.updateTranspose(transpose)
-    }
-
-    override suspend fun updateTheme(theme: AppTheme) {
-        settingsDataStore.updateTheme(theme)
-    }
-}
-
-/**
- * MIDI Repository Implementation
- */
-@Singleton
-class MidiRepositoryImpl @Inject constructor(
-    private val midiManager: MidiManager
-) : MidiRepository {
-
-    override fun observeConnectionState(): Flow<MidiConnectionState> {
-        return midiManager.connectionState
-    }
-
-    override suspend fun connect(deviceId: String?) {
-        // In Android, we use MidiDeviceInfo instead of string ID
-        // For simplicity, auto-connect to first available device
-        midiManager.connect()
-    }
-
-    override suspend fun disconnect() {
-        midiManager.disconnect()
-    }
-
-    override suspend fun sendProgramChange(channel: Int, msb: Int, lsb: Int, pc: Int) {
-        midiManager.sendProgramChange(channel, msb, lsb, pc)
-    }
-
-    override suspend fun sendLiveSetBankChange(bankIndex: Int) {
-        midiManager.sendLiveSetBankChange(bankIndex)
-    }
-
-    override suspend fun sendTranspose(channel: Int, transpose: Int) {
-        midiManager.sendTranspose(channel, transpose)
-    }
-
-    override suspend fun getAvailableDevices(): List<String> {
-        return midiManager.getAvailableDevices().map { it.first }
-    }
-}
-
-/**
- * Sample Repository Implementation with audio file management
- */
-@Singleton
-class SampleRepositoryImpl @Inject constructor(
-    private val sampleDao: SampleDao,
-    @ApplicationContext private val context: Context
-) : SampleRepository {
-
-    private val audioDir = File(context.filesDir, "sample_audio").apply {
-        if (!exists()) mkdirs()
-    }
-
-    override fun observeSamples(): Flow<List<SamplePad>> {
-        return sampleDao.observeAllSamples().map { entities ->
-            entities.map { it.toDomainModel() }
-        }
-    }
-
-    override suspend fun getSamples(): List<SamplePad> {
-        return sampleDao.getAllSamples().map { it.toDomainModel() }
-    }
-
-    override suspend fun updateSample(sample: SamplePad) {
-        sampleDao.updateSample(sample.toEntity())
-    }
-
-    override suspend fun clearSampleAudio(sampleId: Int) {
-        val sample = sampleDao.getSampleById(sampleId)
-        sample?.audioFileName?.let { fileName ->
-            File(audioDir, fileName).delete()
-        }
-        sample?.let {
-            sampleDao.updateSample(
-                it.copy(audioFileName = null, sourceName = null)
-            )
-        }
-    }
-
-    override suspend fun saveSampleAudio(sampleId: Int, sourceFile: File): String {
-        val fileName = "sample_${sampleId}_${System.currentTimeMillis()}.audio"
-        val destFile = File(audioDir, fileName)
-        sourceFile.copyTo(destFile, overwrite = true)
-        return fileName
-    }
-
-    override suspend fun resetSamples() {
-        sampleDao.deleteAll()
-        val defaultSamples = listOf(
-            SampleEntity(0, "S1", 80, false, "#008B8B", null, null),
-            SampleEntity(1, "S2", 80, false, "#F50057", null, null),
-            SampleEntity(2, "S3", 80, false, "#00C853", null, null),
-            SampleEntity(3, "S4", 80, false, "#D500F9", null, null)
-        )
-        sampleDao.insertSamples(defaultSamples)
-    }
-}
-
-private fun SampleEntity.toDomainModel() = SamplePad(
-    id = id,
-    name = name,
-    volume = volume,
-    loop = loop,
-    color = color,
-    audioFileName = audioFileName,
-    sourceName = sourceName
-)
-
-private fun SamplePad.toEntity() = SampleEntity(
-    id = id,
-    name = name,
-    volume = volume,
-    loop = loop,
-    color = color,
-    audioFileName = audioFileName,
-    sourceName = sourceName
 )
