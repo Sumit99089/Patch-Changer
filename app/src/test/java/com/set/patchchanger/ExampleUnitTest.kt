@@ -1,4 +1,4 @@
-package com.set.patchcahnger
+package com.set.patchchanger
 
 import org.junit.Test
 

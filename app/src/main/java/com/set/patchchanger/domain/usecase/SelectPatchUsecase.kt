@@ -1,8 +1,7 @@
-package com.set.patchcahnger.domain.usecase
+package com.set.patchchanger.domain.usecase
 
-import com.set.patchcahnger.domain.model.*
-import com.set.patchcahnger.domain.repository.*
-import kotlinx.coroutines.flow.Flow
+import com.set.patchchanger.domain.model.*
+import com.set.patchchanger.domain.repository.*
 import javax.inject.Inject
 
 /**

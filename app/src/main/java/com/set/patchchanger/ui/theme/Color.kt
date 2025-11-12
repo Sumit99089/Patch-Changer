@@ -1,4 +1,4 @@
-package com.set.patchcahnger.ui.theme
+package com.set.patchchanger.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

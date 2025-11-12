@@ -1,6 +1,6 @@
-package com.set.patchcahnger.domain.repository
+package com.set.patchchanger.domain.repository
 
-import com.set.patchcahnger.domain.model.*
+import com.set.patchchanger.domain.model.*
 import kotlinx.coroutines.flow.Flow
 import java.io.File
 
