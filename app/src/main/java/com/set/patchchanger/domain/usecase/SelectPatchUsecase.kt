@@ -1,7 +1,11 @@
 package com.set.patchchanger.domain.usecase
 
-import com.set.patchchanger.domain.model.*
-import com.set.patchchanger.domain.repository.*
+import com.set.patchchanger.domain.model.PatchSlot
+import com.set.patchchanger.domain.model.Performance
+import com.set.patchchanger.domain.repository.MidiRepository
+import com.set.patchchanger.domain.repository.PatchRepository
+import com.set.patchchanger.domain.repository.SampleRepository
+import com.set.patchchanger.domain.repository.SettingsRepository
 import javax.inject.Inject
 
 /**

@@ -1,6 +1,5 @@
 package com.set.patchchanger.data.local
 
-
 import android.content.Context
 import android.media.midi.*
 import androidx.datastore.core.DataStore
@@ -34,6 +33,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
  * @Singleton ensures only one instance exists in the app.
  * @Inject tells Hilt to inject dependencies automatically.
  */
+
 @Singleton
 class SettingsDataStore @Inject constructor(
     private val context: Context

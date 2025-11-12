@@ -57,5 +57,3 @@ hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 
 # KSP (Kotlin Symbol Processing). A modern alternative to Kapt.
 kotlin-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-
-
