@@ -1,6 +1,5 @@
 package com.set.patchchanger.data.local
 
-
 import android.content.Context
 import android.media.midi.*
 import com.set.patchchanger.domain.model.MidiConnectionState
@@ -65,7 +64,9 @@ class AppMidiManager @Inject constructor(
             // Filter out "Through" and virtual ports
             val name = info.properties.getString(MidiDeviceInfo.PROPERTY_NAME) ?: return@mapNotNull null
             if (name.contains("through", ignoreCase = true)) return@mapNotNull null
-            if (info.outputPortCount == 0) return@mapNotNull null // Need output port to send to
+
+            // CHANGED: Check for inputPortCount because we want to send data TO the device
+            if (info.inputPortCount == 0) return@mapNotNull null
 
             name to info
         }
@@ -91,11 +92,13 @@ class AppMidiManager @Inject constructor(
                 return@openDevice
             }
 
-            // Get first output port (our input for sending)
-            val port = device.openOutputPort(0)
+            // CHANGED: openInputPort instead of openOutputPort
+            // In Android MIDI API, we open an InputPort on the device to write data TO it.
+            val port = device.openInputPort(0)
+
             if (port == null) {
                 device.close()
-                _connectionState.value = MidiConnectionState.Error("No output ports available")
+                _connectionState.value = MidiConnectionState.Error("No input ports available")
                 return@openDevice
             }
 
