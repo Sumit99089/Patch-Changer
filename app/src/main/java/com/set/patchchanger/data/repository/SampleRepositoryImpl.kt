@@ -3,7 +3,6 @@ package com.set.patchchanger.data.repository
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.SoundPool
-import android.net.Uri
 import com.set.patchchanger.data.local.AudioLibraryDao
 import com.set.patchchanger.data.local.AudioLibraryEntity
 import com.set.patchchanger.data.local.SampleDao
@@ -16,7 +15,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.io.File
-import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -87,7 +85,15 @@ class SampleRepositoryImpl @Inject constructor(
         val newEntity = current?.copy(
             audioFileName = fileName,
             sourceName = sourceFile.name
-        ) ?: SampleEntity(sampleId, "S${sampleId+1}", 80, false, "#008B8B", fileName, sourceFile.name)
+        ) ?: SampleEntity(
+            sampleId,
+            "S${sampleId + 1}",
+            80,
+            false,
+            "#008B8B",
+            fileName,
+            sourceFile.name
+        )
 
         sampleDao.insertSamples(listOf(newEntity))
         loadSound(destFile.absolutePath)
@@ -206,8 +212,15 @@ class SampleRepositoryImpl @Inject constructor(
     }
 
     // Mappers
-    private fun SampleEntity.toDomain() = SamplePad(id, name, volume, loop, color, audioFileName, sourceName)
-    private fun SamplePad.toEntity() = SampleEntity(id, name, volume, loop, color, audioFileName, sourceName)
-    private fun AudioLibraryEntity.toDomain() = AudioLibraryItem(name, filePath, sizeBytes, durationMs, addedTimestamp)
-    private fun AudioLibraryItem.toEntity() = AudioLibraryEntity(name, filePath, sizeBytes, durationMs, addedTimestamp)
+    private fun SampleEntity.toDomain() =
+        SamplePad(id, name, volume, loop, color, audioFileName, sourceName)
+
+    private fun SamplePad.toEntity() =
+        SampleEntity(id, name, volume, loop, color, audioFileName, sourceName)
+
+    private fun AudioLibraryEntity.toDomain() =
+        AudioLibraryItem(name, filePath, sizeBytes, durationMs, addedTimestamp)
+
+    private fun AudioLibraryItem.toEntity() =
+        AudioLibraryEntity(name, filePath, sizeBytes, durationMs, addedTimestamp)
 }

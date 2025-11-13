@@ -1,11 +1,11 @@
 package com.set.patchchanger
 
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.PreviewLightDark
-import androidx.core.app.ComponentActivity
-import androidx.core.view.WindowCompat.enableEdgeToEdge
 import com.set.patchchanger.presentation.screens.MainScreen
 import com.set.patchchanger.ui.theme.PatchChangerTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
 
 @PreviewLightDark
 @Composable
-fun test() {
+fun Preview() {
     PatchChangerTheme {
         MainScreen()
     }

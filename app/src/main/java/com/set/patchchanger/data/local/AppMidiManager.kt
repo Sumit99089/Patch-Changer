@@ -1,7 +1,10 @@
 package com.set.patchchanger.data.local
 
 import android.content.Context
-import android.media.midi.*
+import android.media.midi.MidiDevice
+import android.media.midi.MidiDeviceInfo
+import android.media.midi.MidiInputPort
+import android.media.midi.MidiManager
 import com.set.patchchanger.domain.model.MidiConnectionState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,7 +65,8 @@ class AppMidiManager @Inject constructor(
         val devices = systemMidiManager?.devices ?: return emptyList()
         return devices.mapNotNull { info ->
             // Filter out "Through" and virtual ports
-            val name = info.properties.getString(MidiDeviceInfo.PROPERTY_NAME) ?: return@mapNotNull null
+            val name =
+                info.properties.getString(MidiDeviceInfo.PROPERTY_NAME) ?: return@mapNotNull null
             if (name.contains("through", ignoreCase = true)) return@mapNotNull null
 
             // CHANGED: Check for inputPortCount because we want to send data TO the device
@@ -148,24 +152,30 @@ class AppMidiManager @Inject constructor(
         val ch = (channel - 1).coerceIn(0, 15)
 
         // Bank Select MSB
-        sendMessage(byteArrayOf(
-            (0xB0 + ch).toByte(),
-            0x00.toByte(),
-            msb.toByte()
-        ))
+        sendMessage(
+            byteArrayOf(
+                (0xB0 + ch).toByte(),
+                0x00.toByte(),
+                msb.toByte()
+            )
+        )
 
         // Bank Select LSB
-        sendMessage(byteArrayOf(
-            (0xB0 + ch).toByte(),
-            0x20.toByte(),
-            lsb.toByte()
-        ))
+        sendMessage(
+            byteArrayOf(
+                (0xB0 + ch).toByte(),
+                0x20.toByte(),
+                lsb.toByte()
+            )
+        )
 
         // Program Change
-        sendMessage(byteArrayOf(
-            (0xC0 + ch).toByte(),
-            pc.toByte()
-        ))
+        sendMessage(
+            byteArrayOf(
+                (0xC0 + ch).toByte(),
+                pc.toByte()
+            )
+        )
     }
 
     /**
@@ -175,19 +185,21 @@ class AppMidiManager @Inject constructor(
      */
     fun sendLiveSetBankChange(bankIndex: Int) {
         val bankNumber = (bankIndex + 1).toByte()
-        sendMessage(byteArrayOf(
-            0xF0.toByte(), // SysEx start
-            0x43.toByte(), // Yamaha ID
-            0x10.toByte(),
-            0x7F.toByte(),
-            0x1C.toByte(),
-            0x07.toByte(),
-            0x09.toByte(),
-            0x00.toByte(),
-            0x00.toByte(),
-            bankNumber,
-            0xF7.toByte()  // SysEx end
-        ))
+        sendMessage(
+            byteArrayOf(
+                0xF0.toByte(), // SysEx start
+                0x43.toByte(), // Yamaha ID
+                0x10.toByte(),
+                0x7F.toByte(),
+                0x1C.toByte(),
+                0x07.toByte(),
+                0x09.toByte(),
+                0x00.toByte(),
+                0x00.toByte(),
+                bankNumber,
+                0xF7.toByte()  // SysEx end
+            )
+        )
     }
 
     /**
@@ -201,19 +213,21 @@ class AppMidiManager @Inject constructor(
         val ch = (0x10 + (channel - 1).coerceIn(0, 15)).toByte()
         val value = (64 + transpose.coerceIn(-11, 11)).toByte()
 
-        sendMessage(byteArrayOf(
-            0xF0.toByte(),
-            0x43.toByte(),
-            ch,
-            0x7F.toByte(),
-            0x1C.toByte(),
-            0x07.toByte(),
-            0x00.toByte(),
-            0x00.toByte(),
-            0x07.toByte(),
-            value,
-            0xF7.toByte()
-        ))
+        sendMessage(
+            byteArrayOf(
+                0xF0.toByte(),
+                0x43.toByte(),
+                ch,
+                0x7F.toByte(),
+                0x1C.toByte(),
+                0x07.toByte(),
+                0x00.toByte(),
+                0x00.toByte(),
+                0x07.toByte(),
+                value,
+                0xF7.toByte()
+            )
+        )
     }
 
     /**

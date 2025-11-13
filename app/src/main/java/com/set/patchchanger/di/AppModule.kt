@@ -7,6 +7,11 @@ import com.set.patchchanger.data.repository.MidiRepositoryImpl
 import com.set.patchchanger.data.repository.PatchRepositoryImpl
 import com.set.patchchanger.data.repository.SampleRepositoryImpl
 import com.set.patchchanger.data.repository.SettingsRepositoryImpl
+import com.set.patchchanger.domain.repository.AudioLibraryRepository
+import com.set.patchchanger.domain.repository.MidiRepository
+import com.set.patchchanger.domain.repository.PatchRepository
+import com.set.patchchanger.domain.repository.SampleRepository
+import com.set.patchchanger.domain.repository.SettingsRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -14,26 +19,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-/**
- * Hilt Dependency Injection Module
- *
- * Hilt is a dependency injection library built on top of Dagger.
- * It automatically manages object creation and lifecycle.
- *
- * @Module marks this as a Hilt module
- * @InstallIn(SingletonComponent::class) means these dependencies
- * live for the entire app lifecycle
- */
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    /**
-     * Provides Room Database instance.
-     *
-     * @Provides tells Hilt this method provides a dependency
-     * @Singleton ensures only one instance exists
-     */
     @Provides
     @Singleton
     fun provideAppDatabase(
@@ -44,13 +33,10 @@ object AppModule {
             AppDatabase::class.java,
             "live_patch_controller_db"
         )
-            .fallbackToDestructiveMigration() // Recreate DB on version change
+            .fallbackToDestructiveMigration()
             .build()
     }
 
-    /**
-     * Provides DAOs from the database
-     */
     @Provides
     @Singleton
     fun providePatchSlotDao(db: AppDatabase) = db.patchSlotDao()
@@ -74,22 +60,29 @@ object AppModule {
     /**
      * Provides repository implementations
      *
-     * Note: We bind interface to implementation.
-     * This allows easy testing by swapping implementations.
+     * We explicitly state the Interface as the return type.
+     * Hilt knows how to create the 'impl' parameter because
+     * it has an @Inject constructor.
      */
     @Provides
     @Singleton
-    fun providePatchRepository(impl: PatchRepositoryImpl) = impl
+    fun providePatchRepository(impl: PatchRepositoryImpl): PatchRepository = impl
 
     @Provides
     @Singleton
-    fun provideSettingsRepository(impl: SettingsRepositoryImpl) = impl
+    fun provideSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository = impl
 
     @Provides
     @Singleton
-    fun provideMidiRepository(impl: MidiRepositoryImpl) = impl
+    fun provideMidiRepository(impl: MidiRepositoryImpl): MidiRepository = impl
 
     @Provides
     @Singleton
-    fun provideSampleRepository(impl: SampleRepositoryImpl)= impl
+    fun provideSampleRepository(impl: SampleRepositoryImpl): SampleRepository = impl
+
+    // Your SampleRepositoryImpl also implements AudioLibraryRepository,
+    // so we should provide a binding for that interface as well.
+    @Provides
+    @Singleton
+    fun provideAudioLibraryRepository(impl: SampleRepositoryImpl): AudioLibraryRepository = impl
 }

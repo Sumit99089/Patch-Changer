@@ -56,6 +56,7 @@ sealed class MainUiState {
         val samples: List<SamplePad>,
         val midiState: MidiConnectionState
     ) : MainUiState()
+
     data class Error(val message: String) : MainUiState()
 }
 

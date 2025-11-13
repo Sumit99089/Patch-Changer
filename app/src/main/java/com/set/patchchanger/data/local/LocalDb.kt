@@ -100,12 +100,14 @@ interface PatchSlotDao {
     /**
      * Search slots by name or performance name.
      */
-    @Query("""
+    @Query(
+        """
         SELECT * FROM patch_slots 
         WHERE LOWER(name) LIKE '%' || LOWER(:query) || '%'
         OR LOWER(performance_name) LIKE '%' || LOWER(:query) || '%'
         ORDER BY id ASC
-    """)
+    """
+    )
     suspend fun searchSlots(query: String): List<PatchSlotEntity>
 }
 
@@ -230,11 +232,13 @@ interface AudioLibraryDao {
     @Query("DELETE FROM audio_library")
     suspend fun deleteAll()
 
-    @Query("""
+    @Query(
+        """
         SELECT * FROM audio_library 
         WHERE LOWER(name) LIKE '%' || LOWER(:query) || '%'
         ORDER BY added_timestamp DESC
-    """)
+    """
+    )
     suspend fun searchAudio(query: String): List<AudioLibraryEntity>
 }
 

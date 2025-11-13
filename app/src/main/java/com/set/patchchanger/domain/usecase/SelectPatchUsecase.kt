@@ -318,7 +318,8 @@ class GetPerformancesUseCase @Inject constructor() {
                 (0 until bank.pcCount).forEach { pc ->
                     val name = "${bank.name} - ${(pc + 1).toString().padStart(3, '0')}"
                     if (name.lowercase().contains(lowerQuery) ||
-                        (pc + 1).toString().contains(lowerQuery)) {
+                        (pc + 1).toString().contains(lowerQuery)
+                    ) {
                         results.add(
                             Performance(
                                 category = category,

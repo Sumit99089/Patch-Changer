@@ -47,7 +47,7 @@ android {
 dependencies {
 
     // GSON Converter
-    implementation("com.google.code.gson:gson:2.13.2")
+    implementation(libs.gson)
 
     //Dagger-Hilt DI
     implementation(libs.hilt.android)

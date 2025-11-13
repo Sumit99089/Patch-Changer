@@ -6,7 +6,21 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -14,9 +28,39 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Piano
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,7 +72,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.set.patchchanger.domain.model.*
+import com.set.patchchanger.domain.model.AppTheme
+import com.set.patchchanger.domain.model.DisplayNameType
+import com.set.patchchanger.domain.model.MidiConnectionState
+import com.set.patchchanger.domain.model.PatchData
+import com.set.patchchanger.domain.model.PatchSlot
+import com.set.patchchanger.domain.model.Performance
+import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.domain.usecase.GetPerformancesUseCase
 import com.set.patchchanger.presentation.viewmodel.MainEvent
 import com.set.patchchanger.presentation.viewmodel.MainUiState
@@ -46,7 +96,7 @@ fun MainScreen(
     // We need to wrap the content in our custom theme that observes the state
     val currentTheme = (uiState as? MainUiState.Success)?.settings?.theme ?: AppTheme.BLACK
 
-    PatchChangerTheme(appTheme = currentTheme) {
+    PatchChangerTheme {
         MainScreenContent(viewModel, uiState)
     }
 }
@@ -108,7 +158,11 @@ fun MainScreenContent(
         ) {
             when (val state = uiState) {
                 is MainUiState.Success -> {
-                    Column(Modifier.fillMaxSize().padding(8.dp)) {
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(8.dp)
+                    ) {
                         SelectorBar(state, viewModel::onEvent)
                         Spacer(Modifier.height(8.dp))
                         PatchGrid(
@@ -126,8 +180,13 @@ fun MainScreenContent(
                         )
                     }
                 }
+
                 is MainUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                is MainUiState.Error -> Text("Error: ${state.message}", color = Color.Red, modifier = Modifier.align(Alignment.Center))
+                is MainUiState.Error -> Text(
+                    "Error: ${state.message}",
+                    color = Color.Red,
+                    modifier = Modifier.align(Alignment.Center)
+                )
             }
         }
     }
@@ -167,36 +226,58 @@ fun TopBar(uiState: MainUiState, onEvent: (MainEvent) -> Unit, isEditMode: Boole
     val midiState = (uiState as? MainUiState.Success)?.midiState
 
     // Background color animates based on connection state
-    val barColor = if (midiState is MidiConnectionState.Connected) Color(0xFF1B5E20) else MaterialTheme.colorScheme.surface
+    val barColor =
+        if (midiState is MidiConnectionState.Connected) Color(0xFF1B5E20) else MaterialTheme.colorScheme.surface
 
     TopAppBar(
         title = {
             Column {
                 Text("Live Set Patch Changer", style = MaterialTheme.typography.titleMedium)
-                Text(if (isEditMode) "EDIT MODE" else "SRIKANTA",
+                Text(
+                    if (isEditMode) "EDIT MODE" else "SRIKANTA",
                     style = MaterialTheme.typography.labelSmall,
-                    color = if(isEditMode) Color(0xFFFFA726) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    color = if (isEditMode) Color(0xFFFFA726) else MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = 0.7f
+                    )
+                )
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = barColor),
         actions = {
             // Transpose
             settings?.let { s ->
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 8.dp)) {
-                    IconButton(onClick = { onEvent(MainEvent.UpdateTranspose(-1)) }) { Text("-", fontSize = 24.sp, fontWeight = FontWeight.Bold) }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    IconButton(onClick = { onEvent(MainEvent.UpdateTranspose(-1)) }) {
+                        Text(
+                            "-",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     Text(
                         text = if (s.currentTranspose > 0) "+${s.currentTranspose}" else "${s.currentTranspose}",
                         color = if (s.currentTranspose != 0) Color(0xFFFFA726) else MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.clickable { onEvent(MainEvent.ResetTranspose) }
                     )
-                    IconButton(onClick = { onEvent(MainEvent.UpdateTranspose(1)) }) { Text("+", fontSize = 24.sp, fontWeight = FontWeight.Bold) }
+                    IconButton(onClick = { onEvent(MainEvent.UpdateTranspose(1)) }) {
+                        Text(
+                            "+",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
             // MIDI Status Icon
             IconButton(onClick = {
-                if (midiState is MidiConnectionState.Connected) onEvent(MainEvent.DisconnectMidi) else onEvent(MainEvent.ConnectMidi)
+                if (midiState is MidiConnectionState.Connected) onEvent(MainEvent.DisconnectMidi) else onEvent(
+                    MainEvent.ConnectMidi
+                )
             }) {
                 Icon(
                     imageVector = Icons.Default.Piano,
@@ -230,13 +311,38 @@ fun SelectorBar(state: MainUiState.Success, onEvent: (MainEvent) -> Unit) {
 }
 
 @Composable
-fun Selector(label: String, value: String, onPrev: () -> Unit, onNext: () -> Unit, modifier: Modifier = Modifier) {
+fun Selector(
+    label: String,
+    value: String,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onPrev) { Icon(Icons.Default.ArrowUpward, null) } // Up is Prev in HTML logic
-        Card(Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-            Column(Modifier.fillMaxWidth().padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        IconButton(onClick = onPrev) {
+            Icon(
+                Icons.Default.ArrowUpward,
+                null
+            )
+        } // Up is Prev in HTML logic
+        Card(
+            Modifier.weight(1f),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(label, style = MaterialTheme.typography.labelSmall)
-                Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
         IconButton(onClick = onNext) { Icon(Icons.Default.ArrowDownward, null) }
@@ -258,12 +364,21 @@ fun PatchGrid(
         contentPadding = PaddingValues(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.fillMaxWidth().fillMaxHeight(0.75f) // Leave space for bottom bar
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.75f) // Leave space for bottom bar
     ) {
         page?.slots?.let { slots ->
             items(slots) { slot ->
-                val bgColor = try { Color(android.graphics.Color.parseColor(slot.color)) } catch (e: Exception) { MaterialTheme.colorScheme.surfaceVariant }
-                val borderColor = if (slot.selected && !isEditMode) Color(0xFFFFA726) else if (isEditMode) Color.White.copy(alpha=0.3f) else Color.Transparent
+                val bgColor = try {
+                    Color(android.graphics.Color.parseColor(slot.color))
+                } catch (e: Exception) {
+                    MaterialTheme.colorScheme.surfaceVariant
+                }
+                val borderColor =
+                    if (slot.selected && !isEditMode) Color(0xFFFFA726) else if (isEditMode) Color.White.copy(
+                        alpha = 0.3f
+                    ) else Color.Transparent
                 val borderWidth = if (slot.selected || isEditMode) 2.dp else 0.dp
 
                 Card(
@@ -299,11 +414,24 @@ fun BottomBar(
 ) {
     val samples = (uiState as? MainUiState.Success)?.samples ?: emptyList()
 
-    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
         // Sample Pads
-        Row(Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
             samples.take(4).forEach { sample ->
-                val color = try { Color(android.graphics.Color.parseColor(sample.color)) } catch(e:Exception){ MaterialTheme.colorScheme.primary }
+                val color = try {
+                    Color(android.graphics.Color.parseColor(sample.color))
+                } catch (e: Exception) {
+                    MaterialTheme.colorScheme.primary
+                }
                 Button(
                     onClick = {
                         // Play logic handled in ViewModel/Repo via triggered event or direct call
@@ -311,7 +439,10 @@ fun BottomBar(
                         onEvent(MainEvent.SelectSlot(-1)) // Dummy to trigger sound if mapped
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = color),
-                    modifier = Modifier.weight(1f).padding(horizontal = 2.dp).height(50.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 2.dp)
+                        .height(50.dp),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text(sample.name, maxLines = 1)
@@ -322,10 +453,21 @@ fun BottomBar(
         Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
 
         // Bottom Controls
-        Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Row {
                 IconButton(onClick = { /* Save Data Logic */ }) { Icon(Icons.Default.Save, "Save") }
-                IconButton(onClick = { /* Load Data Logic */ }) { Icon(Icons.Default.FolderOpen, "Load") }
+                IconButton(onClick = { /* Load Data Logic */ }) {
+                    Icon(
+                        Icons.Default.FolderOpen,
+                        "Load"
+                    )
+                }
             }
 
             Row {
@@ -359,7 +501,8 @@ fun EditSlotDialog(
     var colorHex by remember { mutableStateOf(slot.color) }
 
     // Performance Browser State
-    val performanceUseCase = remember { GetPerformancesUseCase() } // Should be injected via VM ideally
+    val performanceUseCase =
+        remember { GetPerformancesUseCase() } // Should be injected via VM ideally
     var perfCategory by remember { mutableStateOf(performanceUseCase.getCategories().first()) }
     var perfBankIndex by remember { mutableStateOf(0) }
     var selectedPerf by remember { mutableStateOf<Performance?>(null) }
@@ -367,36 +510,68 @@ fun EditSlotDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f)
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
         ) {
-            Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
-                Text("Edit Slot ${slot.getSlotNumber()}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Column(
+                Modifier
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    "Edit Slot ${slot.getSlotNumber()}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(Modifier.height(16.dp))
 
                 // Name
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Custom Name") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Custom Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
                 // Display Type
-                Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text("Display:", fontWeight = FontWeight.Bold)
                     Spacer(Modifier.width(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = displayNameType == DisplayNameType.PERFORMANCE, onClick = { displayNameType = DisplayNameType.PERFORMANCE })
+                        RadioButton(
+                            selected = displayNameType == DisplayNameType.PERFORMANCE,
+                            onClick = { displayNameType = DisplayNameType.PERFORMANCE })
                         Text("Perf Name")
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = displayNameType == DisplayNameType.CUSTOM, onClick = { displayNameType = DisplayNameType.CUSTOM })
+                        RadioButton(
+                            selected = displayNameType == DisplayNameType.CUSTOM,
+                            onClick = { displayNameType = DisplayNameType.CUSTOM })
                         Text("Custom")
                     }
                 }
 
                 // Assign Sample
-                Text("Assign Sample Pad", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+                Text(
+                    "Assign Sample Pad",
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
                 Row(Modifier.horizontalScroll(rememberScrollState())) {
-                    FilterChip(selected = assignedSample == -1, onClick = { assignedSample = -1 }, label = { Text("None") })
+                    FilterChip(
+                        selected = assignedSample == -1,
+                        onClick = { assignedSample = -1 },
+                        label = { Text("None") })
                     samples.forEach { s ->
                         Spacer(Modifier.width(4.dp))
-                        FilterChip(selected = assignedSample == s.id, onClick = { assignedSample = s.id }, label = { Text(s.name) })
+                        FilterChip(
+                            selected = assignedSample == s.id,
+                            onClick = { assignedSample = s.id },
+                            label = { Text(s.name) })
                     }
                 }
 
@@ -404,15 +579,31 @@ fun EditSlotDialog(
 
                 // Color Picker (Simple Grid)
                 Text("Color", fontWeight = FontWeight.Bold)
-                val colors = listOf("#333333", "#F44336", "#FFEB3B", "#4CAF50", "#2196F3", "#00BCD4", "#E91E63", "#FF9800")
+                val colors = listOf(
+                    "#333333",
+                    "#F44336",
+                    "#FFEB3B",
+                    "#4CAF50",
+                    "#2196F3",
+                    "#00BCD4",
+                    "#E91E63",
+                    "#FF9800"
+                )
                 Row(Modifier.horizontalScroll(rememberScrollState())) {
                     colors.forEach { hex ->
                         Box(
                             Modifier
                                 .size(40.dp)
                                 .padding(4.dp)
-                                .background(Color(android.graphics.Color.parseColor(hex)), RoundedCornerShape(4.dp))
-                                .border(if(colorHex == hex) 2.dp else 0.dp, Color.White, RoundedCornerShape(4.dp))
+                                .background(
+                                    Color(android.graphics.Color.parseColor(hex)),
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .border(
+                                    if (colorHex == hex) 2.dp else 0.dp,
+                                    Color.White,
+                                    RoundedCornerShape(4.dp)
+                                )
                                 .clickable { colorHex = hex }
                         )
                     }
@@ -427,7 +618,8 @@ fun EditSlotDialog(
 
                 // Category Spinner simulator
                 ScrollableTabRow(selectedTabIndex = 0, edgePadding = 0.dp) { // Simplified visual
-                    performanceUseCase.getCategories().take(3).forEach { Text(it, modifier = Modifier.padding(8.dp)) }
+                    performanceUseCase.getCategories().take(3)
+                        .forEach { Text(it, modifier = Modifier.padding(8.dp)) }
                 }
 
                 // List of perfs
@@ -437,11 +629,14 @@ fun EditSlotDialog(
 
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                    Button(onClick = {
-                        // Perform Swap Logic - Needs a way to pick target.
-                        // Simplified: Trigger a mode in UI or open another list
-                        onDismiss()
-                    }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) { Text("Cancel") }
+                    Button(
+                        onClick = {
+                            // Perform Swap Logic - Needs a way to pick target.
+                            // Simplified: Trigger a mode in UI or open another list
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) { Text("Cancel") }
                     Spacer(Modifier.width(8.dp))
                     Button(onClick = {
                         val updated = slot.copy(
