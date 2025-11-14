@@ -12,23 +12,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Piano
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
@@ -52,7 +47,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -182,7 +176,9 @@ fun MainScreenContent(
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.5f
+                                ),
                                 focusedLabelColor = MaterialTheme.colorScheme.onSurface,
                                 cursorColor = MaterialTheme.colorScheme.onSurface,
                                 unfocusedContainerColor = Color.Transparent,
@@ -211,7 +207,9 @@ fun MainScreenContent(
                         Spacer(Modifier.height(4.dp))
 
                         // Patch Grid - Takes remaining space
-                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        Box(modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()) {
                             PatchGrid(
                                 patchData = state.patchData,
                                 currentBankIndex = state.settings.currentBankIndex,
@@ -339,6 +337,7 @@ fun MainScreenContent(
                     }
 
                 }
+
                 is MainUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 is MainUiState.Error -> Text(
                     "Error: ${state.message}",
@@ -588,55 +587,67 @@ fun PatchGrid(
 ) {
     val page = patchData.banks.getOrNull(currentBankIndex)?.pages?.getOrNull(currentPageIndex)
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(4),
-        contentPadding = PaddingValues(0.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        modifier = modifier
-    ) {
-        page?.slots?.let { slots ->
-            items(slots) { slot ->
-                val bgColor = try {
-                    Color(android.graphics.Color.parseColor(slot.color))
-                } catch (e: Exception) {
-                    MaterialTheme.colorScheme.surfaceVariant
-                }
-                val borderColor =
-                    if (slot.selected && !isEditMode) Color(0xFFFFA726) else if (isEditMode) Color.White.copy(
-                        alpha = 0.3f
-                    ) else Color.Transparent
-                val borderWidth = if (slot.selected || isEditMode) 2.dp else 0.dp
-
-                Card(
+    page?.slots?.let { slots ->
+        Column(
+            modifier = modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            repeat(4) { rowIndex ->
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .clickable {
-                            if (isEditMode) {
-                                onSlotLongClick(slot)
-                            } else {
-                                onSlotClick(slot)
-                            }
-                        },
-                    colors = CardDefaults.cardColors(containerColor = bgColor),
-                    border = BorderStroke(borderWidth, borderColor),
-                    shape = RoundedCornerShape(6.dp)
+                        .weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .padding(2.dp), contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = slot.getDisplayName(),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            textAlign = TextAlign.Center,
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(2.dp)
-                        )
+                    repeat(4) { colIndex ->
+                        val slotIndex = rowIndex * 4 + colIndex
+                        if (slotIndex < slots.size) {
+                            val slot = slots[slotIndex]
+                            val bgColor = try {
+                                Color(android.graphics.Color.parseColor(slot.color))
+                            } catch (e: Exception) {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
+                            val borderColor =
+                                if (slot.selected && !isEditMode) Color(0xFFFFA726) else if (isEditMode) Color.White.copy(
+                                    alpha = 0.3f
+                                ) else Color.Transparent
+                            val borderWidth = if (slot.selected || isEditMode) 2.dp else 0.dp
+
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clickable {
+                                        if (isEditMode) {
+                                            onSlotLongClick(slot)
+                                        } else {
+                                            onSlotClick(slot)
+                                        }
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = bgColor),
+                                border = BorderStroke(borderWidth, borderColor),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .padding(2.dp), contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = slot.getDisplayName(),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        textAlign = TextAlign.Center,
+                                        fontSize = 11.sp,
+                                        modifier = Modifier.padding(2.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
             }
