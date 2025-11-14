@@ -37,7 +37,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -66,6 +70,9 @@ sealed class MainUiState {
         val samples: List<SamplePad>,
         val midiState: MidiConnectionState,
         val audioLibrary: List<AudioLibraryItem>,
+        // Search State
+        val searchQuery: String = "",
+        val searchResults: List<SearchResult> = emptyList(),
         // Dialog visibility states
         val showResetDialog: Boolean = false,
         val showBankPageNameDialog: Boolean = false,
@@ -101,6 +108,10 @@ sealed class MainEvent {
     data class UpdatePageName(val index: Int, val name: String) : MainEvent()
     object ConnectMidi : MainEvent()
     object DisconnectMidi : MainEvent()
+
+    // Search Events
+    data class UpdateSearchQuery(val query: String) : MainEvent()
+    data class GoToSearchResult(val result: SearchResult) : MainEvent()
 
     // Dialog Control
     data class ShowResetDialog(val show: Boolean) : MainEvent()
@@ -191,6 +202,8 @@ class MainViewModel @Inject constructor(
             samples = data.samples,
             midiState = data.midiState,
             audioLibrary = data.library,
+            searchQuery = internal.searchQuery,
+            searchResults = internal.searchResults,
             showResetDialog = internal.showResetDialog,
             showBankPageNameDialog = internal.showBankPageNameDialog,
             editingSample = internal.editingSample,
@@ -215,6 +228,21 @@ class MainViewModel @Inject constructor(
      */
     private val _events = MutableSharedFlow<UiEvent>()
     val events: SharedFlow<UiEvent> = _events.asSharedFlow()
+
+    init {
+        // Observe changes to the search query
+        _internalState
+            .onEach {
+                // Don't search if query is too short
+                if (it.searchQuery.length < 2) {
+                    _internalState.update { state -> state.copy(searchResults = emptyList()) }
+                } else {
+                    val results = patchRepository.searchSlots(it.searchQuery)
+                    _internalState.update { state -> state.copy(searchResults = results) }
+                }
+            }
+            .launchIn(viewModelScope)
+    }
 
     /**
      * Handles UI events.
@@ -322,6 +350,21 @@ class MainViewModel @Inject constructor(
                             it
                         }
                     }
+                }
+
+                // --- Search Events ---
+                is MainEvent.UpdateSearchQuery -> {
+                    _internalState.update { it.copy(searchQuery = event.query) }
+                }
+
+                is MainEvent.GoToSearchResult -> {
+                    // Navigate to the correct page
+                    settingsRepository.updateBankIndex(event.result.bankIndex)
+                    settingsRepository.updatePageIndex(event.result.pageIndex)
+                    // Select the slot
+                    selectPatchUseCase(event.result.slot.id)
+                    // Clear search
+                    _internalState.update { it.copy(searchQuery = "", searchResults = emptyList()) }
                 }
 
                 // Dialog Controls
@@ -496,6 +539,8 @@ sealed class UiEvent {
  * Internal mutable state for the ViewModel
  */
 data class InternalState(
+    val searchQuery: String = "",
+    val searchResults: List<SearchResult> = emptyList(),
     val showResetDialog: Boolean = false,
     val showBankPageNameDialog: Boolean = false,
     val editingSample: SamplePad? = null,

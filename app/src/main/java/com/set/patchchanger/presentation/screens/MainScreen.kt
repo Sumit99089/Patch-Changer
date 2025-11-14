@@ -4,13 +4,20 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -31,9 +38,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.set.patchchanger.domain.model.AppTheme
+import com.set.patchchanger.domain.model.SearchResult
 import com.set.patchchanger.presentation.viewmodel.MainEvent
 import com.set.patchchanger.presentation.viewmodel.MainUiState
 import com.set.patchchanger.presentation.viewmodel.MainViewModel
@@ -63,7 +75,6 @@ fun MainScreenContent(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var isEditMode by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
 
     // Launchers
     val audioPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -95,54 +106,64 @@ fun MainScreenContent(
         ) {
             when (uiState) {
                 is MainUiState.Success -> {
-                    Column(Modifier.fillMaxSize().padding(4.dp)) {
-                        // Search Bar
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            label = { Text("Search all patches...") },
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            textStyle = MaterialTheme.typography.bodySmall,
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                focusedLabelColor = MaterialTheme.colorScheme.onSurface,
-                                cursorColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedContainerColor = Color.Transparent
+                    // Box to allow search results to overlay
+                    Box(Modifier.fillMaxSize()) {
+                        Column(Modifier.fillMaxSize().padding(4.dp)) {
+                            // Search Bar
+                            OutlinedTextField(
+                                value = uiState.searchQuery,
+                                onValueChange = { viewModel.onEvent(MainEvent.UpdateSearchQuery(it)) },
+                                label = { Text("Search all patches...") },
+                                modifier = Modifier.fillMaxWidth(), // <-- REMOVED .height(48.dp)
+                                textStyle = MaterialTheme.typography.bodySmall,
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    focusedLabelColor = MaterialTheme.colorScheme.onSurface,
+                                    cursorColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedContainerColor = Color.Transparent
+                                )
                             )
-                        )
 
-                        Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(4.dp))
 
-                        CompactControlsBar(state = uiState, onEvent = viewModel::onEvent)
+                            CompactControlsBar(state = uiState, onEvent = viewModel::onEvent)
 
-                        Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(4.dp))
 
-                        CompactSelectorBar(
-                            state = uiState,
-                            onEvent = viewModel::onEvent,
-                            onToggleEdit = { isEditMode = !isEditMode },
-                            isEditMode = isEditMode
-                        )
-
-                        Spacer(Modifier.height(4.dp))
-
-                        // Patch Grid
-                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                            PatchGrid(
-                                patchData = uiState.patchData,
-                                currentBankIndex = uiState.settings.currentBankIndex,
-                                currentPageIndex = uiState.settings.currentPageIndex,
-                                isEditMode = isEditMode,
-                                onSlotClick = { slot -> viewModel.onEvent(MainEvent.SelectSlot(slot.id)) },
-                                onSlotEdit = { slot -> viewModel.onEvent(MainEvent.ShowSlotColorDialog(slot)) },
-                                onSlotSwap = { sourceId, targetId -> viewModel.onEvent(MainEvent.SwapSlots(sourceId, targetId)) },
-                                modifier = Modifier.fillMaxSize()
+                            CompactSelectorBar(
+                                state = uiState,
+                                onEvent = viewModel::onEvent,
+                                onToggleEdit = { isEditMode = !isEditMode },
+                                isEditMode = isEditMode
                             )
+
+                            Spacer(Modifier.height(4.dp))
+
+                            // Patch Grid
+                            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                PatchGrid(
+                                    patchData = uiState.patchData,
+                                    currentBankIndex = uiState.settings.currentBankIndex,
+                                    currentPageIndex = uiState.settings.currentPageIndex,
+                                    isEditMode = isEditMode,
+                                    onSlotClick = { slot -> viewModel.onEvent(MainEvent.SelectSlot(slot.id)) },
+                                    onSlotEdit = { slot -> viewModel.onEvent(MainEvent.ShowSlotColorDialog(slot)) },
+                                    onSlotSwap = { sourceId, targetId -> viewModel.onEvent(MainEvent.SwapSlots(sourceId, targetId)) },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
+
+                        // --- Search Results Overlay ---
+                        SearchResultsOverlay(
+                            uiState = uiState,
+                            onEvent = viewModel::onEvent
+                        )
                     }
+
 
                     // --- Dialogs (Calling Logic) ---
                     // This function now contains all the dialogs from the original file.
@@ -155,6 +176,66 @@ fun MainScreenContent(
         }
     }
 }
+
+@Composable
+fun SearchResultsOverlay(
+    uiState: MainUiState.Success,
+    onEvent: (MainEvent) -> Unit
+) {
+    // Show results if query is not blank and we have results
+    if (uiState.searchQuery.isNotBlank() && uiState.searchResults.isNotEmpty()) {
+        Card(
+            modifier = Modifier
+                .padding(horizontal = 4.dp)
+                // Position it below the search bar (48dp + 4dp spacer)
+                .padding(top = (48 + 4).dp)
+                .fillMaxWidth()
+                .heightIn(max = 300.dp) // Limit height
+                .zIndex(10f), // Ensure it's on top
+            elevation = CardDefaults.cardElevation(8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            LazyColumn {
+                items(uiState.searchResults) { result ->
+                    SearchResultItem(
+                        result = result,
+                        onClick = { onEvent(MainEvent.GoToSearchResult(result)) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SearchResultItem(
+    result: SearchResult,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = result.slot.getDisplayName(),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "Bank: ${result.bankName}  |  Page: ${result.pageName}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
+
 
 @Composable
 fun HandleDialogs(
