@@ -30,6 +30,7 @@ import com.set.patchchanger.domain.model.PatchData
 import com.set.patchchanger.domain.model.PatchSlot
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.core.graphics.toColorInt
 
 /**
  * Internal state holder for drag-and-drop operations within the grid.
@@ -59,8 +60,18 @@ fun PatchGrid(
     val slotBounds = remember { mutableMapOf<Int, Rect>() }
     val density = LocalDensity.current
 
+    // Store the grid's own offset relative to the root
+    var gridOffset by remember { mutableStateOf(Offset.Zero) }
+
     if (slots != null) {
-        Box(modifier = modifier.fillMaxSize()) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                // Get the grid's position relative to the root
+                .onGloballyPositioned {
+                    gridOffset = it.localToRoot(Offset.Zero)
+                }
+        ) {
             // The 4x4 Grid
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -95,10 +106,10 @@ fun PatchGrid(
                                     onDrag = { offsetChange ->
                                         if (dragState.isDragging) {
                                             dragState = dragState.copy(dragOffset = dragState.dragOffset + offsetChange)
-                                            val dragCenter = slotBounds[slot.id]?.center?.plus(dragState.dragOffset)
+                                            val dragCenter = slotBounds[dragState.draggedSlot?.id]?.center?.plus(dragState.dragOffset)
                                             if (dragCenter != null) {
                                                 val targetEntry = slotBounds.entries.find { (id, bounds) ->
-                                                    id != slot.id && bounds.contains(dragCenter)
+                                                    id != dragState.draggedSlot?.id && bounds.contains(dragCenter)
                                                 }
                                                 dragState = dragState.copy(
                                                     dropTargetSlot = targetEntry?.let { entry -> slots.find { s -> s.id == entry.key } }
@@ -128,9 +139,15 @@ fun PatchGrid(
                         modifier = Modifier
                             .zIndex(10f)
                             .offset {
+                                // FIX:
+                                // bounds.topLeft is the slot's absolute screen position
+                                // gridOffset is the grid's absolute screen position
+                                // (bounds.topLeft - gridOffset) is the slot's position *relative to the grid*
+                                // Then we add the dragOffset
+                                val relativeTopLeft = bounds.topLeft - gridOffset
                                 IntOffset(
-                                    (bounds.topLeft.x + dragState.dragOffset.x).roundToInt(),
-                                    (bounds.topLeft.y + dragState.dragOffset.y).roundToInt()
+                                    (relativeTopLeft.x + dragState.dragOffset.x).roundToInt(),
+                                    (relativeTopLeft.y + dragState.dragOffset.y).roundToInt()
                                 )
                             }
                             .width(widthInDp)
@@ -176,7 +193,12 @@ fun RowScope.PatchSlotItem(
             .onGloballyPositioned { layoutCoordinates ->
                 onGloballyPositioned(Rect(layoutCoordinates.localToRoot(Offset.Zero), layoutCoordinates.size.toSize()))
             }
-            .pointerInput(isEditMode) {
+            // --- FIX ---
+            // We key pointerInput not just on `isEditMode`, but also on the `slot` itself.
+            // When the slot data changes (like after a swap), this key will be different,
+            // forcing the pointerInput block to re-run and capture the new `onDragStart`
+            // lambda, which holds a reference to the new (e.g., yellow) slot.
+            .pointerInput(isEditMode, slot) {
                 if (isEditMode) {
                     detectDragGesturesAfterLongPress(
                         onDragStart = { scope.launch { onDragStart() } },
@@ -202,7 +224,7 @@ fun PatchSlotCard(
     modifier: Modifier = Modifier
 ) {
     val bgColor = try {
-        Color(android.graphics.Color.parseColor(slot.color))
+        Color(slot.color.toColorInt())
     } catch (e: Exception) {
         MaterialTheme.colorScheme.surfaceVariant
     }
