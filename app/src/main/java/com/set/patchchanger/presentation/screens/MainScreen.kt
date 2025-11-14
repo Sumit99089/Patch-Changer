@@ -144,14 +144,12 @@ fun MainScreenContent(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            // TopBar is simplified for portrait mode
             TopBar(
                 uiState = uiState,
                 onEvent = viewModel::onEvent
             )
         },
         bottomBar = {
-            // BottomBar is now a Column
             BottomBar(
                 uiState = uiState,
                 onEvent = viewModel::onEvent,
@@ -162,52 +160,79 @@ fun MainScreenContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding) // Apply scaffold padding
+                .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
             when (val state = uiState) {
                 is MainUiState.Success -> {
-                    // Main content is now a Column holding all controls and the grid
                     Column(
                         Modifier
                             .fillMaxSize()
-                            .padding(8.dp) // Inner padding for content
+                            .padding(4.dp)
                     ) {
-                        // All controls are stacked vertically
-                        ControlsBar(
-                            uiState = state,
-                            onEvent = viewModel::onEvent,
-                            searchQuery = searchQuery,
-                            onSearchQueryChange = { searchQuery = it }
+                        // Compact Search Bar
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            label = { Text("Search all patches...") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            textStyle = MaterialTheme.typography.bodySmall,
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                focusedLabelColor = MaterialTheme.colorScheme.onSurface,
+                                cursorColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedContainerColor = Color.Transparent
+                            )
                         )
-                        SelectorBar(
+
+                        Spacer(Modifier.height(4.dp))
+
+                        // Compact Controls Row
+                        CompactControlsBar(
+                            state = state,
+                            onEvent = viewModel::onEvent
+                        )
+
+                        Spacer(Modifier.height(4.dp))
+
+                        // Compact Selector Bar
+                        CompactSelectorBar(
                             state = state,
                             onEvent = viewModel::onEvent,
                             onToggleEdit = { isEditMode = !isEditMode },
                             isEditMode = isEditMode
                         )
-                        Spacer(Modifier.height(8.dp))
-                        // The grid now fills the remaining space
-                        PatchGrid(
-                            patchData = state.patchData,
-                            currentBankIndex = state.settings.currentBankIndex,
-                            currentPageIndex = state.settings.currentPageIndex,
-                            isEditMode = isEditMode,
-                            onSlotClick = { slot ->
-                                if (isEditMode) {
+
+                        Spacer(Modifier.height(4.dp))
+
+                        // Patch Grid - Takes remaining space
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            PatchGrid(
+                                patchData = state.patchData,
+                                currentBankIndex = state.settings.currentBankIndex,
+                                currentPageIndex = state.settings.currentPageIndex,
+                                isEditMode = isEditMode,
+                                onSlotClick = { slot ->
+                                    if (isEditMode) {
+                                        viewModel.onEvent(MainEvent.ShowSlotColorDialog(slot))
+                                    } else {
+                                        viewModel.onEvent(MainEvent.SelectSlot(slot.id))
+                                    }
+                                },
+                                onSlotLongClick = { slot ->
                                     viewModel.onEvent(MainEvent.ShowSlotColorDialog(slot))
-                                } else {
-                                    viewModel.onEvent(MainEvent.SelectSlot(slot.id))
-                                }
-                            },
-                            onSlotLongClick = { slot ->
-                                viewModel.onEvent(MainEvent.ShowSlotColorDialog(slot))
-                            },
-                            modifier = Modifier.weight(1f) // Grid fills remaining space
-                        )
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
 
-                    // --- Dialogs (No change) ---
+                    // --- Dialogs ---
                     if (state.showResetDialog) {
                         ConfirmationDialog(
                             title = "Reset All Data",
@@ -335,7 +360,6 @@ fun TopBar(
     val barColor =
         if (midiState is MidiConnectionState.Connected) Color(0xFF1B5E20) else MaterialTheme.colorScheme.surfaceVariant
 
-    // Simplified TopBar for portrait
     TopAppBar(
         title = {
             Column {
@@ -348,133 +372,126 @@ fun TopBar(
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = barColor),
-        actions = {
-            // Actions are moved to the main content for portrait mode
-        }
+        actions = {}
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ControlsBar(
-    uiState: MainUiState.Success,
-    onEvent: (MainEvent) -> Unit,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit
+fun CompactControlsBar(
+    state: MainUiState.Success,
+    onEvent: (MainEvent) -> Unit
 ) {
-    val settings = uiState.settings
-    val midiState = uiState.midiState
+    val settings = state.settings
+    val midiState = state.midiState
 
-    Column(Modifier.fillMaxWidth()) {
-        // Search Bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
-            label = { Text("Search all patches...") },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            textStyle = MaterialTheme.typography.bodySmall,
-            singleLine = true,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                focusedLabelColor = MaterialTheme.colorScheme.onSurface,
-                cursorColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedContainerColor = Color.Transparent,
-                focusedContainerColor = Color.Transparent
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(44.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Transpose Controls - Compact
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            IconButton(
+                onClick = { onEvent(MainEvent.UpdateTranspose(-1)) },
+                modifier = Modifier
+                    .width(36.dp)
+                    .height(36.dp)
+            ) {
+                Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+            Text(
+                text = if (settings.currentTranspose > 0) "+${settings.currentTranspose}" else "${settings.currentTranspose}",
+                color = if (settings.currentTranspose != 0) Color(0xFFFFA726) else MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable { onEvent(MainEvent.ResetTranspose) },
+                fontSize = 12.sp
             )
+            IconButton(
+                onClick = { onEvent(MainEvent.UpdateTranspose(1)) },
+                modifier = Modifier
+                    .width(36.dp)
+                    .height(36.dp)
+            ) {
+                Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // MIDI Status - Compact
+        Text(
+            text = if (midiState is MidiConnectionState.Connected) midiState.deviceName else "Not Connected",
+            color = if (midiState is MidiConnectionState.Connected) Color.Green else Color.Red,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            fontSize = 10.sp,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Center
         )
 
-        Spacer(Modifier.height(8.dp))
+        // MIDI Channel Dropdown - Compact
+        var midiDropdownExpanded by remember { mutableStateOf(false) }
+        val midiChannels = (1..16).map { it.toString() }
 
-        // Transpose and MIDI controls
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        ExposedDropdownMenuBox(
+            expanded = midiDropdownExpanded,
+            onExpandedChange = { midiDropdownExpanded = !midiDropdownExpanded },
+            modifier = Modifier.width(60.dp)
         ) {
-            // Transpose
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = { onEvent(MainEvent.UpdateTranspose(-1)) }) {
-                    Text("-", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                }
-                Text(
-                    text = if (settings.currentTranspose > 0) "+${settings.currentTranspose}" else "${settings.currentTranspose}",
-                    color = if (settings.currentTranspose != 0) Color(0xFFFFA726) else MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { onEvent(MainEvent.ResetTranspose) }
+            OutlinedTextField(
+                value = settings.currentMidiChannel.toString(),
+                onValueChange = {},
+                readOnly = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = midiDropdownExpanded) },
+                modifier = Modifier
+                    .menuAnchor()
+                    .height(40.dp),
+                textStyle = MaterialTheme.typography.labelSmall,
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedContainerColor = Color.Transparent
                 )
-                IconButton(onClick = { onEvent(MainEvent.UpdateTranspose(1)) }) {
-                    Text("+", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            // MIDI Status Text
-            Text(
-                text = if (midiState is MidiConnectionState.Connected) midiState.deviceName else "Not Connected",
-                color = if (midiState is MidiConnectionState.Connected) Color.Green else Color.Red,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
             )
-
-            // MIDI Channel Dropdown
-            var midiDropdownExpanded by remember { mutableStateOf(false) }
-            val midiChannels = (1..16).map { it.toString() }
-
-            ExposedDropdownMenuBox(
+            ExposedDropdownMenu(
                 expanded = midiDropdownExpanded,
-                onExpandedChange = { midiDropdownExpanded = !midiDropdownExpanded },
-                modifier = Modifier.width(70.dp)
+                onDismissRequest = { midiDropdownExpanded = false }
             ) {
-                OutlinedTextField(
-                    value = settings.currentMidiChannel.toString(),
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = midiDropdownExpanded) },
-                    modifier = Modifier.menuAnchor().height(56.dp),
-                    textStyle = MaterialTheme.typography.bodyMedium,
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedContainerColor = Color.Transparent
+                midiChannels.forEach { channel ->
+                    DropdownMenuItem(
+                        text = { Text(channel) },
+                        onClick = {
+                            onEvent(MainEvent.UpdateMidiChannel(channel.toInt()))
+                            midiDropdownExpanded = false
+                        }
                     )
-                )
-                ExposedDropdownMenu(
-                    expanded = midiDropdownExpanded,
-                    onDismissRequest = { midiDropdownExpanded = false }
-                ) {
-                    midiChannels.forEach { channel ->
-                        DropdownMenuItem(
-                            text = { Text(channel) },
-                            onClick = {
-                                onEvent(MainEvent.UpdateMidiChannel(channel.toInt()))
-                                midiDropdownExpanded = false
-                            }
-                        )
-                    }
                 }
             }
         }
     }
 }
 
-
 @Composable
-fun SelectorBar(
+fun CompactSelectorBar(
     state: MainUiState.Success,
     onEvent: (MainEvent) -> Unit,
     onToggleEdit: () -> Unit,
     isEditMode: Boolean
 ) {
     Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        Modifier
+            .fillMaxWidth()
+            .height(44.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Selector(
+        CompactSelector(
             label = "Bank",
             value = state.patchData.bankNames.getOrElse(state.settings.currentBankIndex) { "" },
             onPrev = { onEvent(MainEvent.NavigateBank(-1)) },
@@ -482,8 +499,7 @@ fun SelectorBar(
             onClick = { onEvent(MainEvent.ShowBankPageNameDialog(true)) },
             modifier = Modifier.weight(1f)
         )
-        Spacer(Modifier.width(8.dp))
-        Selector(
+        CompactSelector(
             label = "Page",
             value = state.patchData.pageNames.getOrElse(state.settings.currentPageIndex) { "" },
             onPrev = { onEvent(MainEvent.NavigatePage(-1)) },
@@ -491,23 +507,23 @@ fun SelectorBar(
             onClick = { onEvent(MainEvent.ShowBankPageNameDialog(true)) },
             modifier = Modifier.weight(1f)
         )
-        Spacer(Modifier.width(16.dp))
         Button(
             onClick = onToggleEdit,
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (isEditMode) Color(0xFFFFA726) else MaterialTheme.colorScheme.secondary
             ),
-            modifier = Modifier.height(50.dp)
+            modifier = Modifier
+                .width(60.dp)
+                .height(40.dp),
+            contentPadding = PaddingValues(2.dp)
         ) {
-            Icon(Icons.Default.Edit, contentDescription = "Edit")
-            Spacer(Modifier.width(8.dp))
-            Text(if (isEditMode) "DONE" else "EDIT")
+            Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.width(16.dp))
         }
     }
 }
 
 @Composable
-fun Selector(
+fun CompactSelector(
     label: String,
     value: String,
     onPrev: () -> Unit,
@@ -516,32 +532,47 @@ fun Selector(
     modifier: Modifier = Modifier
 ) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onPrev) {
-            Icon(Icons.Default.ArrowUpward, null)
+        IconButton(
+            onClick = onPrev,
+            modifier = Modifier
+                .width(32.dp)
+                .height(32.dp)
+        ) {
+            Icon(Icons.Default.ArrowUpward, null, modifier = Modifier.width(16.dp))
         }
         Card(
             Modifier
                 .weight(1f)
+                .height(40.dp)
                 .clickable { onClick() },
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(
                 Modifier
-                    .fillMaxWidth()
-                    .padding(4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxSize()
+                    .padding(2.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Text(label, style = MaterialTheme.typography.labelSmall)
+                Text(label, style = MaterialTheme.typography.labelSmall, fontSize = 9.sp)
                 Text(
                     value,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 10.sp
                 )
             }
         }
-        IconButton(onClick = onNext) { Icon(Icons.Default.ArrowDownward, null) }
+        IconButton(
+            onClick = onNext,
+            modifier = Modifier
+                .width(32.dp)
+                .height(32.dp)
+        ) {
+            Icon(Icons.Default.ArrowDownward, null, modifier = Modifier.width(16.dp))
+        }
     }
 }
 
@@ -553,17 +584,16 @@ fun PatchGrid(
     isEditMode: Boolean,
     onSlotClick: (PatchSlot) -> Unit,
     onSlotLongClick: (PatchSlot) -> Unit,
-    modifier: Modifier = Modifier // Modifier added
+    modifier: Modifier = Modifier
 ) {
     val page = patchData.banks.getOrNull(currentBankIndex)?.pages?.getOrNull(currentPageIndex)
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(4),
-        contentPadding = PaddingValues(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = modifier // Use passed modifier
-            .fillMaxWidth()
+        contentPadding = PaddingValues(0.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = modifier
     ) {
         page?.slots?.let { slots ->
             items(slots) { slot ->
@@ -580,7 +610,8 @@ fun PatchGrid(
 
                 Card(
                     modifier = Modifier
-                        .aspectRatio(1f) // CHANGED to 1f for square, "equally spread" slots
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
                         .clickable {
                             if (isEditMode) {
                                 onSlotLongClick(slot)
@@ -590,20 +621,21 @@ fun PatchGrid(
                         },
                     colors = CardDefaults.cardColors(containerColor = bgColor),
                     border = BorderStroke(borderWidth, borderColor),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(6.dp)
                 ) {
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .padding(4.dp), contentAlignment = Alignment.Center
+                            .padding(2.dp), contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = slot.getDisplayName(),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(4.dp)
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(2.dp)
                         )
                     }
                 }
@@ -620,18 +652,17 @@ fun BottomBar(
 ) {
     val samples = (uiState as? MainUiState.Success)?.samples ?: emptyList()
 
-    // Converted to a Column for portrait mode
     Column(
         Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(vertical = 4.dp)
+            .padding(vertical = 2.dp)
     ) {
         // Sample Pads
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp),
+                .padding(horizontal = 2.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             samples.take(4).forEach { sample ->
@@ -651,15 +682,17 @@ fun BottomBar(
                     colors = ButtonDefaults.buttonColors(containerColor = color),
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 2.dp)
-                        .height(50.dp),
-                    shape = RoundedCornerShape(8.dp)
+                        .padding(horizontal = 1.dp)
+                        .height(40.dp),
+                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(2.dp)
                 ) {
                     Text(
                         sample.name,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = Color.White
+                        color = Color.White,
+                        fontSize = 10.sp
                     )
                 }
             }
@@ -667,33 +700,61 @@ fun BottomBar(
 
         Divider(
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-            modifier = Modifier.padding(vertical = 4.dp)
+            modifier = Modifier.padding(vertical = 2.dp)
         )
 
         // Bottom Controls
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { /* Save Data Logic */ }) { Icon(Icons.Default.Save, "Save") }
-                IconButton(onClick = { /* Load Data Logic */ }) {
-                    Icon(Icons.Default.FolderOpen, "Load")
+                IconButton(
+                    onClick = { /* Save Data Logic */ },
+                    modifier = Modifier
+                        .width(36.dp)
+                        .height(36.dp)
+                ) {
+                    Icon(Icons.Default.Save, "Save", modifier = Modifier.width(18.dp))
                 }
-                TextButton(onClick = { onEvent(MainEvent.ShowResetDialog(true)) }) {
-                    Text("X Reset", color = Color.Red)
+                IconButton(
+                    onClick = { /* Load Data Logic */ },
+                    modifier = Modifier
+                        .width(36.dp)
+                        .height(36.dp)
+                ) {
+                    Icon(Icons.Default.FolderOpen, "Load", modifier = Modifier.width(18.dp))
+                }
+                TextButton(
+                    onClick = { onEvent(MainEvent.ShowResetDialog(true)) },
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(36.dp),
+                    contentPadding = PaddingValues(2.dp)
+                ) {
+                    Text("X Reset", color = Color.Red, fontSize = 9.sp)
                 }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { /* TODO: Show Settings Dialog */ }) {
-                    Icon(Icons.Default.Settings, "Settings")
+                IconButton(
+                    onClick = { /* TODO: Show Settings Dialog */ },
+                    modifier = Modifier
+                        .width(36.dp)
+                        .height(36.dp)
+                ) {
+                    Icon(Icons.Default.Settings, "Settings", modifier = Modifier.width(18.dp))
                 }
-                IconButton(onClick = { /* TODO: Show Power/Quit Dialog */ }) {
-                    Icon(Icons.Default.PowerSettingsNew, "Power")
+                IconButton(
+                    onClick = { /* TODO: Show Power/Quit Dialog */ },
+                    modifier = Modifier
+                        .width(36.dp)
+                        .height(36.dp)
+                ) {
+                    Icon(Icons.Default.PowerSettingsNew, "Power", modifier = Modifier.width(18.dp))
                 }
             }
         }
