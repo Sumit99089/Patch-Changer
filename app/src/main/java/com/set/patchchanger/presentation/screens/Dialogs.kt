@@ -444,17 +444,27 @@ fun EditSlotDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Display on Main Grid:")
-                    Spacer(Modifier.width(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+
+                // --- FIX 1: Radio Button Layout ---
+                Text("Display on Main Grid:", fontWeight = FontWeight.Bold)
+                Column(Modifier.padding(top = 4.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { displayNameType = DisplayNameType.PERFORMANCE }
+                    ) {
                         RadioButton(
                             selected = displayNameType == DisplayNameType.PERFORMANCE,
                             onClick = { displayNameType = DisplayNameType.PERFORMANCE })
                         Text("Performance Name")
                     }
-                    Spacer(Modifier.width(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { displayNameType = DisplayNameType.CUSTOM }
+                    ) {
                         RadioButton(
                             selected = displayNameType == DisplayNameType.CUSTOM,
                             onClick = { displayNameType = DisplayNameType.CUSTOM })
@@ -520,14 +530,20 @@ fun EditSlotDialog(
 
                 // Slot Actions
                 Text("Slot Actions", fontWeight = FontWeight.Bold)
+                // --- FIX 2: Button Layout ---
                 Row(
                     Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(onClick = { showColorPicker = true }) { Text("Color") }
-                    Button(onClick = { onCopy(); onDismiss() }) { Text("Copy") }
-                    Button(onClick = { onPaste(); onDismiss() }) { Text("Paste") }
-                    Button(onClick = { onSwap(); onDismiss() }) { Text("Swap") }
+                    Button(onClick = { showColorPicker = true }, modifier = Modifier.weight(1f)) { Text("Color") }
+                    Button(onClick = { onCopy(); onDismiss() }, modifier = Modifier.weight(1f)) { Text("Copy") }
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(onClick = { onPaste(); onDismiss() }, modifier = Modifier.weight(1f)) { Text("Paste") }
+                    Button(onClick = { onSwap(); onDismiss() }, modifier = Modifier.weight(1f)) { Text("Swap") }
                 }
                 Button(
                     onClick = { onClear(); onDismiss() },
