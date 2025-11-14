@@ -59,6 +59,49 @@ data class PatchSlot(
      * Returns the bank index (0-7)
      */
     fun getBankIndex(): Int = id / 256
+
+    /**
+     * Creates a copy of this slot but with data from another slot (except ID and selection)
+     */
+    fun copyDataFrom(source: PatchSlot): PatchSlot {
+        return this.copy(
+            name = source.name,
+            description = source.description,
+            color = source.color,
+            msb = source.msb,
+            lsb = source.lsb,
+            pc = source.pc,
+            volume = source.volume,
+            performanceName = source.performanceName,
+            displayNameType = source.displayNameType,
+            assignedSample = source.assignedSample
+        )
+    }
+
+    companion object {
+        /**
+         * Creates a default, cleared slot
+         */
+        fun createDefault(id: Int, defaultColor: String): PatchSlot {
+            val slotNum = (id % 16) + 1
+            val pageNum = ((id / 16) % 16)
+            val perfName = "Slot $slotNum"
+            return PatchSlot(
+                id = id,
+                name = "$slotNum",
+                description = "Slot $slotNum",
+                selected = false,
+                color = defaultColor,
+                msb = 62,
+                lsb = pageNum,
+                pc = slotNum - 1,
+                volume = 100,
+                performanceName = perfName,
+                displayNameType = DisplayNameType.CUSTOM,
+                assignedSample = -1
+            )
+        }
+    }
 }
 
 /**
@@ -184,13 +227,14 @@ data class AppSettings(
 /**
  * Audio library item stored in the database
  */
+@Parcelize
 data class AudioLibraryItem(
     val name: String,
     val filePath: String,
     val sizeBytes: Long,
     val durationMs: Long,
     val addedTimestamp: Long
-)
+) : Parcelable
 
 /**
  * MODX color preset

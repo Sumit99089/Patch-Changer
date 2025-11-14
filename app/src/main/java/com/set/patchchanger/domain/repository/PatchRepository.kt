@@ -1,5 +1,6 @@
 package com.set.patchchanger.domain.repository
 
+import android.net.Uri
 import com.set.patchchanger.domain.model.AppSettings
 import com.set.patchchanger.domain.model.AppTheme
 import com.set.patchchanger.domain.model.AudioLibraryItem
@@ -112,17 +113,44 @@ interface SampleRepository {
     suspend fun clearSampleAudio(sampleId: Int)
 
     /**
-     * Saves audio file for a sample pad.
+     * Saves audio file for a sample pad from a content URI.
      * @param sampleId Sample ID
-     * @param sourceFile Source audio file
+     * @param sourceUri Source audio file URI
+     * @param originalName The display name of the file
      * @return File path of saved audio
      */
-    suspend fun saveSampleAudio(sampleId: Int, sourceFile: File): String
+    suspend fun saveSampleAudioFromUri(sampleId: Int, sourceUri: Uri, originalName: String): String
+
+    /**
+     * Assigns an audio file from the library to a sample pad.
+     * @param sampleId Sample ID
+     * @param libraryItem The library item to assign
+     * @return File path of saved audio
+     */
+    suspend fun saveSampleAudioFromLibrary(sampleId: Int, libraryItem: AudioLibraryItem): String
+
 
     /**
      * Resets all samples to defaults.
      */
     suspend fun resetSamples()
+
+    // --- Playback ---
+    /**
+     * Triggers playback for a sample pad.
+     * Looks up config (loop, vol) from DB.
+     */
+    suspend fun triggerSampleAudio(sampleId: Int)
+
+    /**
+     * Stops playback for a specific sample pad.
+     */
+    fun stopSample(sampleId: Int)
+
+    /**
+     * Cleans up resources (SoundPool).
+     */
+    fun cleanup()
 }
 
 /**
@@ -140,12 +168,12 @@ interface AudioLibraryRepository {
     suspend fun getLibraryItems(): List<AudioLibraryItem>
 
     /**
-     * Adds an audio file to the library.
-     * @param sourceFile Source audio file
+     * Adds an audio file to the library from a content URI.
+     * @param sourceUri Source audio file URI
      * @param originalName Original file name
      * @return AudioLibraryItem representing the added file
      */
-    suspend fun addAudioFile(sourceFile: File, originalName: String): AudioLibraryItem
+    suspend fun addAudioFile(sourceUri: Uri, originalName: String): AudioLibraryItem
 
     /**
      * Deletes an audio file from the library.
@@ -265,4 +293,9 @@ interface MidiRepository {
      * @return List of device names
      */
     suspend fun getAvailableDevices(): List<String>
+
+    /**
+     * Cleans up MIDI resources.
+     */
+    fun cleanup()
 }

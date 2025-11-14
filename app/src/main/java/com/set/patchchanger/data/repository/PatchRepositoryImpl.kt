@@ -16,6 +16,7 @@ import com.set.patchchanger.domain.model.PatchData
 import com.set.patchchanger.domain.model.PatchSlot
 import com.set.patchchanger.domain.model.SearchResult
 import com.set.patchchanger.domain.repository.PatchRepository
+import com.set.patchchanger.ui.theme.getDefaultColors
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -54,6 +55,8 @@ class PatchRepositoryImpl @Inject constructor(
         pages: List<PageEntity>
     ): PatchData {
         val bankList = mutableListOf<Bank>()
+        val bankNameMap = banks.associateBy { it.index }
+        val pageNameMap = pages.associateBy { it.index }
 
         // Group slots by bank (0-7)
         for (bankIndex in 0..7) {
@@ -70,14 +73,14 @@ class PatchRepositoryImpl @Inject constructor(
                 pageList.add(Page(pageSlots))
             }
 
-            val bankName = banks.getOrNull(bankIndex)?.name ?: "User ${bankIndex + 1}"
+            val bankName = bankNameMap[bankIndex]?.name ?: "User ${bankIndex + 1}"
             bankList.add(Bank(bankName, pageList))
         }
 
         return PatchData(
             banks = bankList,
-            bankNames = banks.map { it.name },
-            pageNames = pages.map { it.name }
+            bankNames = (0..7).map { bankNameMap[it]?.name ?: "User ${it + 1}" },
+            pageNames = (0..15).map { pageNameMap[it]?.name ?: "Page ${it + 1}" }
         )
     }
 
@@ -106,37 +109,18 @@ class PatchRepositoryImpl @Inject constructor(
         val defaultBanks = (0..7).map { BankEntity(it, "User ${it + 1}") }
         val defaultPages = (0..15).map { PageEntity(it, "Page ${it + 1}") }
 
-        patchSlotDao.insertSlots(defaultSlots)
+        patchSlotDao.insertSlots(defaultSlots.map { it.toEntity() })
         bankDao.insertBanks(defaultBanks)
         pageDao.insertPages(defaultPages)
     }
 
-    private fun generateDefaultSlots(): List<PatchSlotEntity> {
+    private fun generateDefaultSlots(): List<PatchSlot> {
         val colors = getDefaultColors()
-        val slots = mutableListOf<PatchSlotEntity>()
+        val slots = mutableListOf<PatchSlot>()
 
-        for (bank in 0..7) {
-            for (page in 0..15) {
-                for (slot in 0..15) {
-                    val id = bank * 256 + page * 16 + slot
-                    slots.add(
-                        PatchSlotEntity(
-                            id = id,
-                            name = "${slot + 1}",
-                            description = "Slot ${slot + 1}",
-                            selected = (id == 0),
-                            color = colors[slot % colors.size],
-                            msb = 62,
-                            lsb = page,
-                            pc = slot,
-                            volume = 100,
-                            performanceName = "Slot ${slot + 1}",
-                            displayNameType = "custom",
-                            assignedSample = -1
-                        )
-                    )
-                }
-            }
+        for (id in 0 until (8 * 16 * 16)) {
+            val color = colors[id % 16]
+            slots.add(PatchSlot.createDefault(id, color))
         }
         return slots
     }
@@ -248,6 +232,9 @@ class PatchRepositoryImpl @Inject constructor(
         val banks = bankDao.getAllBanks()
         val pages = pageDao.getAllPages()
 
+        val bankNameMap = banks.associateBy { it.index }
+        val pageNameMap = pages.associateBy { it.index }
+
         return slots.map { slot ->
             val bankIndex = slot.id / 256
             val pageIndex = (slot.id / 16) % 16
@@ -256,18 +243,11 @@ class PatchRepositoryImpl @Inject constructor(
                 slot = slot.toDomainModel(),
                 bankIndex = bankIndex,
                 pageIndex = pageIndex,
-                bankName = banks.getOrNull(bankIndex)?.name ?: "User ${bankIndex + 1}",
-                pageName = pages.getOrNull(pageIndex)?.name ?: "Page ${pageIndex + 1}"
+                bankName = bankNameMap[bankIndex]?.name ?: "User ${bankIndex + 1}",
+                pageName = pageNameMap[pageIndex]?.name ?: "Page ${pageIndex + 1}"
             )
         }
     }
-
-    private fun getDefaultColors(): List<String> = listOf(
-        "#333333", "#F44336", "#FFEB3B", "#4CAF50",
-        "#2196F3", "#00BCD4", "#E91E63", "#FF9800",
-        "#9C27B0", "#F8BBD0", "#FFECB3", "#CDDC39",
-        "#B2EBF2", "#D7CCC8", "#B2DFDB", "#D1C4E9"
-    )
 }
 
 private fun PatchSlotEntity.toDomainModel() = PatchSlot(

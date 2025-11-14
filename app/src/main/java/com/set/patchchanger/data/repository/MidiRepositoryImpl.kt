@@ -43,4 +43,8 @@ class MidiRepositoryImpl @Inject constructor(
     override suspend fun getAvailableDevices(): List<String> {
         return midiManager.getAvailableDevices().map { it.first }
     }
+
+    override fun cleanup() {
+        midiManager.cleanup()
+    }
 }

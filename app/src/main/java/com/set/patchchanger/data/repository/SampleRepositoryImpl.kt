@@ -3,6 +3,7 @@ package com.set.patchchanger.data.repository
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.SoundPool
+import android.net.Uri
 import com.set.patchchanger.data.local.AudioLibraryDao
 import com.set.patchchanger.data.local.AudioLibraryEntity
 import com.set.patchchanger.data.local.SampleDao
@@ -12,9 +13,12 @@ import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.domain.repository.AudioLibraryRepository
 import com.set.patchchanger.domain.repository.SampleRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,7 +29,7 @@ class SampleRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ) : SampleRepository, AudioLibraryRepository {
 
-    // SoundPool for low-latency playback (like the HTML AudioContext)
+    // SoundPool for low-latency playback
     private val soundPool = SoundPool.Builder()
         .setMaxStreams(4)
         .setAudioAttributes(
@@ -70,37 +74,86 @@ class SampleRepositoryImpl @Inject constructor(
     override suspend fun clearSampleAudio(sampleId: Int) {
         val current = sampleDao.getSampleById(sampleId)
         current?.let {
-            sampleDao.updateSample(it.copy(audioFileName = null, sourceName = null))
+            // Unload sound from pool if it exists
+            it.audioFileName?.let { fileName ->
+                val fullPath = File(context.filesDir, fileName).absolutePath
+                loadedSoundIds[fullPath]?.let { soundId ->
+                    soundPool.unload(soundId)
+                    loadedSoundIds.remove(fullPath)
+                }
+                // Delete the file
+                File(fullPath).delete()
+            }
+            // Update DB
+            sampleDao.updateSample(
+                it.copy(
+                    audioFileName = null,
+                    sourceName = null,
+                    name = "S${sampleId + 1}"
+                )
+            )
         }
         stopSample(sampleId)
     }
 
-    override suspend fun saveSampleAudio(sampleId: Int, sourceFile: File): String {
-        val fileName = "sample_${sampleId}_${System.currentTimeMillis()}.wav"
+    override suspend fun saveSampleAudioFromUri(
+        sampleId: Int,
+        sourceUri: Uri,
+        originalName: String
+    ): String = withContext(Dispatchers.IO) {
+        val fileName = "sample_${sampleId}_${System.currentTimeMillis()}"
         val destFile = File(context.filesDir, fileName)
+
+        // Copy file from URI to internal storage
+        context.contentResolver.openInputStream(sourceUri)?.use { input ->
+            FileOutputStream(destFile).use { output ->
+                input.copyTo(output)
+            }
+        }
+
+        updateSampleDb(sampleId, fileName, originalName)
+        loadSound(destFile.absolutePath)
+        return@withContext fileName
+    }
+
+    override suspend fun saveSampleAudioFromLibrary(
+        sampleId: Int,
+        libraryItem: AudioLibraryItem
+    ): String = withContext(Dispatchers.IO) {
+        val fileName = "sample_${sampleId}_${System.currentTimeMillis()}"
+        val destFile = File(context.filesDir, fileName)
+        val sourceFile = File(context.filesDir, libraryItem.filePath)
+
         sourceFile.copyTo(destFile, overwrite = true)
 
-        // Update DB
+        updateSampleDb(sampleId, fileName, libraryItem.name)
+        loadSound(destFile.absolutePath)
+        return@withContext fileName
+    }
+
+
+    private suspend fun updateSampleDb(sampleId: Int, fileName: String, sourceName: String) {
         val current = sampleDao.getSampleById(sampleId)
         val newEntity = current?.copy(
             audioFileName = fileName,
-            sourceName = sourceFile.name
+            sourceName = sourceName,
+            name = sourceName.substringBeforeLast('.') // Set name to file name
         ) ?: SampleEntity(
             sampleId,
-            "S${sampleId + 1}",
+            sourceName.substringBeforeLast('.'),
             80,
             false,
-            "#008B8B",
+            getDefaultSampleColors()[sampleId],
             fileName,
-            sourceFile.name
+            sourceName
         )
-
-        sampleDao.insertSamples(listOf(newEntity))
-        loadSound(destFile.absolutePath)
-        return fileName
+        sampleDao.updateSample(newEntity)
     }
 
     override suspend fun resetSamples() {
+        // Delete all audio files
+        getSamples().forEach { clearSampleAudio(it.id) }
+        // Delete from DB
         sampleDao.deleteAll()
         sampleDao.insertSamples(generateDefaultSamples())
         // Clear SoundPool cache
@@ -110,41 +163,42 @@ class SampleRepositoryImpl @Inject constructor(
 
     // --- Audio Playback Logic ---
 
-    fun playSample(sampleId: Int) {
+    override suspend fun triggerSampleAudio(sampleId: Int) {
+        val sample = sampleDao.getSampleById(sampleId)?.toDomain() ?: return
+        if (sample.audioFileName == null) return
+
         // Stop existing stream for this pad if any (monophonic per pad)
         stopSample(sampleId)
 
-        // We need to fetch the latest config synchronously or cache it.
-        // For simplicity, we rely on the caller or internal cache.
-        // In a real app, you might want a RAM cache for `sampleConfigs`.
-        // Here we assume the file path is passed or looked up.
-    }
-
-    // Helper to actually play sound given specific parameters (called from UI/ViewModel)
-    fun triggerSampleAudio(filePath: String, volume: Int, loop: Boolean, sampleId: Int) {
-        val fullPath = File(context.filesDir, filePath).absolutePath
+        val fullPath = File(context.filesDir, sample.audioFileName).absolutePath
         val soundId = loadedSoundIds[fullPath] ?: soundPool.load(fullPath, 1)
 
         // Store ID if newly loaded
         if (!loadedSoundIds.containsKey(fullPath)) {
             loadedSoundIds[fullPath] = soundId
-            // Note: soundPool.load is async. In a perfect world we wait for onLoadComplete.
-            // For now, we assume small samples load fast.
+            // We should wait for onLoadComplete, but for low latency we play immediately
+            // This might fail on first tap if file is large
         }
 
-        val vol = volume / 100f
-        val loopCount = if (loop) -1 else 0
+        val vol = sample.volume / 100f
+        val loopCount = if (sample.loop) -1 else 0
 
         // Play
         val streamId = soundPool.play(soundId, vol, vol, 1, loopCount, 1f)
-        activeStreamIds[sampleId] = streamId
+        if (streamId != 0) {
+            activeStreamIds[sampleId] = streamId
+        }
     }
 
-    fun stopSample(sampleId: Int) {
+    override fun stopSample(sampleId: Int) {
         activeStreamIds[sampleId]?.let {
             soundPool.stop(it)
             activeStreamIds.remove(sampleId)
         }
+    }
+
+    override fun cleanup() {
+        soundPool.release()
     }
 
     private fun loadSound(path: String) {
@@ -153,8 +207,10 @@ class SampleRepositoryImpl @Inject constructor(
         }
     }
 
+    private fun getDefaultSampleColors() = listOf("#008B8B", "#F50057", "#00C853", "#D500F9")
+
     private fun generateDefaultSamples(): List<SampleEntity> {
-        val colors = listOf("#008B8B", "#F50057", "#00C853", "#D500F9") // From HTML
+        val colors = getDefaultSampleColors()
         return (0..3).map { i ->
             SampleEntity(
                 id = i,
@@ -178,24 +234,31 @@ class SampleRepositoryImpl @Inject constructor(
         return audioLibraryDao.getAllAudio().map { it.toDomain() }
     }
 
-    override suspend fun addAudioFile(sourceFile: File, originalName: String): AudioLibraryItem {
-        val fileName = "lib_${System.currentTimeMillis()}_${originalName}"
-        val destFile = File(context.filesDir, fileName)
-        sourceFile.copyTo(destFile, overwrite = true)
+    override suspend fun addAudioFile(sourceUri: Uri, originalName: String): AudioLibraryItem =
+        withContext(Dispatchers.IO) {
+            val fileName = "lib_${System.currentTimeMillis()}_$originalName"
+            val destFile = File(context.filesDir, fileName)
 
-        // Use MediaMetadataRetriever for duration if needed, skipping for brevity
-        val duration = 0L
+            // Copy file from URI to internal storage
+            context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                FileOutputStream(destFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
 
-        val entity = AudioLibraryEntity(
-            name = originalName,
-            filePath = fileName,
-            sizeBytes = destFile.length(),
-            durationMs = duration,
-            addedTimestamp = System.currentTimeMillis()
-        )
-        audioLibraryDao.insertAudio(entity)
-        return entity.toDomain()
-    }
+            // Use MediaMetadataRetriever for duration if needed, skipping for brevity
+            val duration = 0L
+
+            val entity = AudioLibraryEntity(
+                name = originalName,
+                filePath = fileName,
+                sizeBytes = destFile.length(),
+                durationMs = duration,
+                addedTimestamp = System.currentTimeMillis()
+            )
+            audioLibraryDao.insertAudio(entity)
+            return@withContext entity.toDomain()
+        }
 
     override suspend fun deleteAudioFile(item: AudioLibraryItem) {
         val file = File(context.filesDir, item.filePath)

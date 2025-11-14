@@ -1,12 +1,11 @@
 package com.set.patchchanger.presentation.screens
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,14 +18,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -41,17 +37,14 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -70,16 +63,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.set.patchchanger.domain.model.AppTheme
-import com.set.patchchanger.domain.model.DisplayNameType
 import com.set.patchchanger.domain.model.MidiConnectionState
 import com.set.patchchanger.domain.model.PatchData
 import com.set.patchchanger.domain.model.PatchSlot
-import com.set.patchchanger.domain.model.Performance
-import com.set.patchchanger.domain.model.SamplePad
-import com.set.patchchanger.domain.usecase.GetPerformancesUseCase
 import com.set.patchchanger.presentation.viewmodel.MainEvent
 import com.set.patchchanger.presentation.viewmodel.MainUiState
 import com.set.patchchanger.presentation.viewmodel.MainViewModel
@@ -93,9 +81,11 @@ fun MainScreen(
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    // We need to wrap the content in our custom theme that observes the state
     val currentTheme = (uiState as? MainUiState.Success)?.settings?.theme ?: AppTheme.BLACK
 
+    // We need to wrap the content in our custom theme that observes the state
+    // NOTE: The theme selection logic is not fully implemented in the original Theme.kt
+    // For now, we use the default dark/light theme.
     PatchChangerTheme {
         MainScreenContent(viewModel, uiState)
     }
@@ -113,15 +103,24 @@ fun MainScreenContent(
     // Edit Mode State
     var isEditMode by remember { mutableStateOf(false) }
 
-    // Modal States
-    var showEditSlotDialog by remember { mutableStateOf<PatchSlot?>(null) }
-    var showThemeDialog by remember { mutableStateOf(false) }
-
-    // Sample File Picker
-    val samplePickerLauncher = rememberLauncherForActivityResult(
+    // Audio file picker
+    val audioPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        // Handle audio file selection for sample (implementation detail would require copying Uri to File)
+    ) { uri: Uri? ->
+        uri?.let {
+            val name = viewModel.getFileName(it)
+            viewModel.onEvent(MainEvent.SetSampleFile(it, name))
+        }
+    }
+
+    // Audio file picker for library
+    val libraryPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            val name = viewModel.getFileName(it)
+            viewModel.onEvent(MainEvent.AddFileToLibrary(it, name))
+        }
     }
 
     // Handle Events
@@ -129,10 +128,7 @@ fun MainScreenContent(
         viewModel.events.collectLatest { event ->
             when (event) {
                 is UiEvent.ShowMessage -> snackbarHostState.showSnackbar(event.message)
-                is UiEvent.PlaySample -> {
-                    // In a real app, this would trigger the repository's play function
-                    // For now, we assume the repository or a singleton handles playback via SoundPool
-                }
+                is UiEvent.RequestFilePicker -> audioPickerLauncher.launch("audio/*")
             }
         }
     }
@@ -146,7 +142,7 @@ fun MainScreenContent(
                 onEvent = viewModel::onEvent,
                 onToggleEdit = { isEditMode = !isEditMode },
                 isEditMode = isEditMode,
-                onThemeClick = { showThemeDialog = true }
+                onThemeClick = { /* TODO: Show Theme Dialog */ }
             )
         }
     ) { padding ->
@@ -172,13 +168,131 @@ fun MainScreenContent(
                             isEditMode = isEditMode,
                             onSlotClick = { slot ->
                                 if (isEditMode) {
-                                    showEditSlotDialog = slot
+                                    viewModel.onEvent(MainEvent.ShowSlotColorDialog(slot))
                                 } else {
                                     viewModel.onEvent(MainEvent.SelectSlot(slot.id))
                                 }
+                            },
+                            onSlotLongClick = { slot ->
+                                viewModel.onEvent(MainEvent.ShowSlotColorDialog(slot))
                             }
                         )
                     }
+
+                    // --- Dialogs ---
+                    if (state.showResetDialog) {
+                        ConfirmationDialog(
+                            title = "Reset All Data",
+                            text = "Are you sure you want to reset all data, including the audio library?",
+                            onConfirm = { viewModel.onEvent(MainEvent.ResetData) },
+                            onDismiss = { viewModel.onEvent(MainEvent.ShowResetDialog(false)) }
+                        )
+                    }
+
+                    if (state.showBankPageNameDialog) {
+                        BankPageNameDialog(
+                            state = state,
+                            onDismiss = { viewModel.onEvent(MainEvent.ShowBankPageNameDialog(false)) },
+                            onSaveBank = {
+                                viewModel.onEvent(
+                                    MainEvent.UpdateBankName(
+                                        state.settings.currentBankIndex,
+                                        it
+                                    )
+                                )
+                            },
+                            onSavePage = {
+                                viewModel.onEvent(
+                                    MainEvent.UpdatePageName(
+                                        state.settings.currentPageIndex,
+                                        it
+                                    )
+                                )
+                            }
+                        )
+                    }
+
+                    state.editingSample?.let { sample ->
+                        EditSampleDialog(
+                            sample = sample,
+                            onDismiss = { viewModel.onEvent(MainEvent.ShowEditSampleDialog(null)) },
+                            onSave = { viewModel.onEvent(MainEvent.UpdateSample(it)) },
+                            onLoadFile = { viewModel.onEvent(MainEvent.LoadSampleFile) },
+                            onSelectFromLibrary = {
+                                viewModel.onEvent(
+                                    MainEvent.ShowAudioLibrary(
+                                        true,
+                                        sample.id
+                                    )
+                                )
+                            },
+                            onClearAudio = { viewModel.onEvent(MainEvent.ClearSampleAudio(sample.id)) },
+                            onEditColor = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(sample)) }
+                        )
+                    }
+
+                    if (state.showAudioLibrary) {
+                        AudioLibraryDialog(
+                            library = state.audioLibrary,
+                            onDismiss = { viewModel.onEvent(MainEvent.ShowAudioLibrary(false)) },
+                            onSelect = { viewModel.onEvent(MainEvent.SelectSampleFromLibrary(it)) },
+                            onDelete = { viewModel.onEvent(MainEvent.DeleteFromAudioLibrary(it)) },
+                            onAddFile = { libraryPickerLauncher.launch("audio/*") }
+                        )
+                    }
+
+                    state.slotToPaste?.let { slot ->
+                        ConfirmationDialog(
+                            title = "Confirm Paste",
+                            text = "Paste '${viewModel.internalState.value.slotToPaste?.getDisplayName() ?: "..."}' over '${slot.getDisplayName()}'?",
+                            onConfirm = { viewModel.onEvent(MainEvent.PasteSlot(slot)) },
+                            onDismiss = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(null)) }
+                        )
+                    }
+
+                    state.slotToClear?.let { slot ->
+                        ConfirmationDialog(
+                            title = "Clear Slot",
+                            text = "Are you sure you want to clear slot '${slot.getDisplayName()}'?",
+                            onConfirm = { viewModel.onEvent(MainEvent.ClearSlot(slot)) },
+                            onDismiss = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(null)) }
+                        )
+                    }
+
+                    state.slotToSwap?.let { slot ->
+                        SwapDialog(
+                            currentPageSlots = state.patchData.banks[state.settings.currentBankIndex].pages[state.settings.currentPageIndex].slots,
+                            sourceSlot = slot,
+                            onDismiss = { viewModel.onEvent(MainEvent.ShowSwapDialog(null)) },
+                            onSelectSlot = { targetSlot ->
+                                viewModel.onEvent(MainEvent.SwapSlots(slot.id, targetSlot.id))
+                            }
+                        )
+                    }
+
+                    state.slotToEditColor?.let { slot ->
+                        EditSlotDialog(
+                            slot = slot,
+                            onDismiss = { viewModel.onEvent(MainEvent.ShowSlotColorDialog(null)) },
+                            onSave = { viewModel.onEvent(MainEvent.UpdateSlot(it)) },
+                            onCopy = { viewModel.onEvent(MainEvent.CopySlot(slot)) },
+                            onPaste = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(slot)) },
+                            onSwap = { viewModel.onEvent(MainEvent.ShowSwapDialog(slot)) },
+                            onClear = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(slot)) },
+                            samples = state.samples
+                        )
+                    }
+
+                    state.sampleToEditColor?.let { sample ->
+                        ColorPickerDialog(
+                            onDismiss = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(null)) },
+                            onColorSelected = { colorHex ->
+                                viewModel.onEvent(MainEvent.UpdateSample(sample.copy(color = colorHex)))
+                                viewModel.onEvent(MainEvent.ShowSampleColorDialog(null))
+                            }
+                        )
+                    }
+
                 }
 
                 is MainUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
@@ -190,33 +304,6 @@ fun MainScreenContent(
             }
         }
     }
-
-    // Dialogs
-    if (showEditSlotDialog != null) {
-        EditSlotDialog(
-            slot = showEditSlotDialog!!,
-            samples = (uiState as? MainUiState.Success)?.samples ?: emptyList(),
-            onDismiss = { showEditSlotDialog = null },
-            onSave = { updatedSlot ->
-                viewModel.onEvent(MainEvent.UpdateSlot(updatedSlot))
-                showEditSlotDialog = null
-            },
-            onSwap = { targetSlotId ->
-                viewModel.onEvent(MainEvent.SwapSlots(showEditSlotDialog!!.id, targetSlotId))
-                showEditSlotDialog = null
-            }
-        )
-    }
-
-    if (showThemeDialog) {
-        ThemeSelectionDialog(
-            onDismiss = { showThemeDialog = false },
-            onThemeSelected = { theme ->
-                viewModel.onEvent(MainEvent.UpdateTheme(theme))
-                showThemeDialog = false
-            }
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -227,12 +314,12 @@ fun TopBar(uiState: MainUiState, onEvent: (MainEvent) -> Unit, isEditMode: Boole
 
     // Background color animates based on connection state
     val barColor =
-        if (midiState is MidiConnectionState.Connected) Color(0xFF1B5E20) else MaterialTheme.colorScheme.surface
+        if (midiState is MidiConnectionState.Connected) Color(0xFF1B5E20) else MaterialTheme.colorScheme.surfaceVariant
 
     TopAppBar(
         title = {
             Column {
-                Text("Live Set Patch Changer", style = MaterialTheme.typography.titleMedium)
+                Text("Set Patch Chang", style = MaterialTheme.typography.titleMedium)
                 Text(
                     if (isEditMode) "EDIT MODE" else "SRIKANTA",
                     style = MaterialTheme.typography.labelSmall,
@@ -254,7 +341,8 @@ fun TopBar(uiState: MainUiState, onEvent: (MainEvent) -> Unit, isEditMode: Boole
                         Text(
                             "-",
                             fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     Text(
@@ -267,7 +355,8 @@ fun TopBar(uiState: MainUiState, onEvent: (MainEvent) -> Unit, isEditMode: Boole
                         Text(
                             "+",
                             fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -297,6 +386,7 @@ fun SelectorBar(state: MainUiState.Success, onEvent: (MainEvent) -> Unit) {
             value = state.patchData.bankNames.getOrElse(state.settings.currentBankIndex) { "" },
             onPrev = { onEvent(MainEvent.NavigateBank(-1)) },
             onNext = { onEvent(MainEvent.NavigateBank(1)) },
+            onClick = { onEvent(MainEvent.ShowBankPageNameDialog(true)) },
             modifier = Modifier.weight(1f)
         )
         Spacer(Modifier.width(8.dp))
@@ -305,6 +395,7 @@ fun SelectorBar(state: MainUiState.Success, onEvent: (MainEvent) -> Unit) {
             value = state.patchData.pageNames.getOrElse(state.settings.currentPageIndex) { "" },
             onPrev = { onEvent(MainEvent.NavigatePage(-1)) },
             onNext = { onEvent(MainEvent.NavigatePage(1)) },
+            onClick = { onEvent(MainEvent.ShowBankPageNameDialog(true)) },
             modifier = Modifier.weight(1f)
         )
     }
@@ -316,6 +407,7 @@ fun Selector(
     value: String,
     onPrev: () -> Unit,
     onNext: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
@@ -324,9 +416,11 @@ fun Selector(
                 Icons.Default.ArrowUpward,
                 null
             )
-        } // Up is Prev in HTML logic
+        } // Up is Prev
         Card(
-            Modifier.weight(1f),
+            Modifier
+                .weight(1f)
+                .clickable { onClick() },
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(
@@ -345,7 +439,7 @@ fun Selector(
                 )
             }
         }
-        IconButton(onClick = onNext) { Icon(Icons.Default.ArrowDownward, null) }
+        IconButton(onClick = onNext) { Icon(Icons.Default.ArrowDownward, null) } // Down is Next
     }
 }
 
@@ -355,7 +449,8 @@ fun PatchGrid(
     currentBankIndex: Int,
     currentPageIndex: Int,
     isEditMode: Boolean,
-    onSlotClick: (PatchSlot) -> Unit
+    onSlotClick: (PatchSlot) -> Unit,
+    onSlotLongClick: (PatchSlot) -> Unit
 ) {
     val page = patchData.banks.getOrNull(currentBankIndex)?.pages?.getOrNull(currentPageIndex)
 
@@ -366,7 +461,7 @@ fun PatchGrid(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight(0.75f) // Leave space for bottom bar
+            .fillMaxHeight(0.85f) // Leave space for bottom bar
     ) {
         page?.slots?.let { slots ->
             items(slots) { slot ->
@@ -383,17 +478,28 @@ fun PatchGrid(
 
                 Card(
                     modifier = Modifier
-                        .aspectRatio(1f)
-                        .clickable { onSlotClick(slot) },
+                        .aspectRatio(1.618f) // Golden ratio for a wider button
+                        .clickable {
+                            if (isEditMode) {
+                                onSlotLongClick(slot) // Open edit dialog on simple tap in edit mode
+                            } else {
+                                onSlotClick(slot)
+                            }
+                        },
                     colors = CardDefaults.cardColors(containerColor = bgColor),
-                    border = BorderStroke(borderWidth, borderColor)
+                    border = BorderStroke(borderWidth, borderColor),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(4.dp), contentAlignment = Alignment.Center
+                    ) {
                         Text(
                             text = slot.getDisplayName(),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White, // Always white text on colored tiles as per HTML
+                            color = Color.White, // Always white text on colored tiles
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(4.dp)
                         )
@@ -417,13 +523,13 @@ fun BottomBar(
     Column(
         Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
         // Sample Pads
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(4.dp),
+                .padding(horizontal = 4.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             samples.take(4).forEach { sample ->
@@ -434,18 +540,25 @@ fun BottomBar(
                 }
                 Button(
                     onClick = {
-                        // Play logic handled in ViewModel/Repo via triggered event or direct call
-                        // For pure UI feedback:
-                        onEvent(MainEvent.SelectSlot(-1)) // Dummy to trigger sound if mapped
+                        if (isEditMode) {
+                            onEvent(MainEvent.ShowEditSampleDialog(sample))
+                        } else {
+                            onEvent(MainEvent.TriggerSample(sample.id))
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = color),
                     modifier = Modifier
                         .weight(1f)
                         .padding(horizontal = 2.dp)
                         .height(50.dp),
-                    shape = RoundedCornerShape(4.dp)
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text(sample.name, maxLines = 1)
+                    Text(
+                        sample.name,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = Color.White
+                    )
                 }
             }
         }
@@ -456,11 +569,11 @@ fun BottomBar(
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(8.dp),
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { /* Save Data Logic */ }) { Icon(Icons.Default.Save, "Save") }
                 IconButton(onClick = { /* Load Data Logic */ }) {
                     Icon(
@@ -468,9 +581,12 @@ fun BottomBar(
                         "Load"
                     )
                 }
+                TextButton(onClick = { onEvent(MainEvent.ShowResetDialog(true)) }) {
+                    Text("X Reset", color = Color.Red)
+                }
             }
 
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onThemeClick) { Icon(Icons.Default.Palette, "Theme") }
                 Button(
                     onClick = onToggleEdit,
@@ -479,200 +595,6 @@ fun BottomBar(
                     )
                 ) {
                     Text(if (isEditMode) "DONE" else "EDIT")
-                }
-            }
-        }
-    }
-}
-
-// --- Edit Dialogs ---
-
-@Composable
-fun EditSlotDialog(
-    slot: PatchSlot,
-    samples: List<SamplePad>,
-    onDismiss: () -> Unit,
-    onSave: (PatchSlot) -> Unit,
-    onSwap: (Int) -> Unit
-) {
-    var name by remember { mutableStateOf(slot.name) }
-    var displayNameType by remember { mutableStateOf(slot.displayNameType) }
-    var assignedSample by remember { mutableStateOf(slot.assignedSample) }
-    var colorHex by remember { mutableStateOf(slot.color) }
-
-    // Performance Browser State
-    val performanceUseCase =
-        remember { GetPerformancesUseCase() } // Should be injected via VM ideally
-    var perfCategory by remember { mutableStateOf(performanceUseCase.getCategories().first()) }
-    var perfBankIndex by remember { mutableStateOf(0) }
-    var selectedPerf by remember { mutableStateOf<Performance?>(null) }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.9f)
-        ) {
-            Column(
-                Modifier
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Text(
-                    "Edit Slot ${slot.getSlotNumber()}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(16.dp))
-
-                // Name
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Custom Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Display Type
-                Row(
-                    Modifier.padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Display:", fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(
-                            selected = displayNameType == DisplayNameType.PERFORMANCE,
-                            onClick = { displayNameType = DisplayNameType.PERFORMANCE })
-                        Text("Perf Name")
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(
-                            selected = displayNameType == DisplayNameType.CUSTOM,
-                            onClick = { displayNameType = DisplayNameType.CUSTOM })
-                        Text("Custom")
-                    }
-                }
-
-                // Assign Sample
-                Text(
-                    "Assign Sample Pad",
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-                Row(Modifier.horizontalScroll(rememberScrollState())) {
-                    FilterChip(
-                        selected = assignedSample == -1,
-                        onClick = { assignedSample = -1 },
-                        label = { Text("None") })
-                    samples.forEach { s ->
-                        Spacer(Modifier.width(4.dp))
-                        FilterChip(
-                            selected = assignedSample == s.id,
-                            onClick = { assignedSample = s.id },
-                            label = { Text(s.name) })
-                    }
-                }
-
-                Divider(Modifier.padding(vertical = 8.dp))
-
-                // Color Picker (Simple Grid)
-                Text("Color", fontWeight = FontWeight.Bold)
-                val colors = listOf(
-                    "#333333",
-                    "#F44336",
-                    "#FFEB3B",
-                    "#4CAF50",
-                    "#2196F3",
-                    "#00BCD4",
-                    "#E91E63",
-                    "#FF9800"
-                )
-                Row(Modifier.horizontalScroll(rememberScrollState())) {
-                    colors.forEach { hex ->
-                        Box(
-                            Modifier
-                                .size(40.dp)
-                                .padding(4.dp)
-                                .background(
-                                    Color(android.graphics.Color.parseColor(hex)),
-                                    RoundedCornerShape(4.dp)
-                                )
-                                .border(
-                                    if (colorHex == hex) 2.dp else 0.dp,
-                                    Color.White,
-                                    RoundedCornerShape(4.dp)
-                                )
-                                .clickable { colorHex = hex }
-                        )
-                    }
-                }
-
-                Divider(Modifier.padding(vertical = 8.dp))
-
-                // Performance Browser (Simplified)
-                Text("Assign Performance", fontWeight = FontWeight.Bold)
-                // In real app, use ExposedDropdownMenuBox. Using simple rows for brevity
-                Text("Current: ${slot.performanceName}", fontSize = 12.sp, color = Color.Gray)
-
-                // Category Spinner simulator
-                ScrollableTabRow(selectedTabIndex = 0, edgePadding = 0.dp) { // Simplified visual
-                    performanceUseCase.getCategories().take(3)
-                        .forEach { Text(it, modifier = Modifier.padding(8.dp)) }
-                }
-
-                // List of perfs
-                val banks = performanceUseCase.getBanks(perfCategory)
-                // This part handles the complexity of the HTML browser
-                // For code brevity, we imply the selection updates 'selectedPerf'
-
-                Spacer(Modifier.height(16.dp))
-                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                    Button(
-                        onClick = {
-                            // Perform Swap Logic - Needs a way to pick target.
-                            // Simplified: Trigger a mode in UI or open another list
-                            onDismiss()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                    ) { Text("Cancel") }
-                    Spacer(Modifier.width(8.dp))
-                    Button(onClick = {
-                        val updated = slot.copy(
-                            name = name,
-                            displayNameType = displayNameType,
-                            assignedSample = assignedSample,
-                            color = colorHex,
-                            // If selectedPerf update MSB/LSB/PC/Name
-                            performanceName = selectedPerf?.name ?: slot.performanceName,
-                            msb = selectedPerf?.msb ?: slot.msb,
-                            lsb = selectedPerf?.lsb ?: slot.lsb,
-                            pc = selectedPerf?.pc ?: slot.pc
-                        )
-                        onSave(updated)
-                    }) { Text("Save") }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ThemeSelectionDialog(onDismiss: () -> Unit, onThemeSelected: (AppTheme) -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card {
-            Column(Modifier.padding(16.dp)) {
-                Text("Select Theme", style = MaterialTheme.typography.titleLarge)
-                LazyVerticalGrid(GridCells.Fixed(2), modifier = Modifier.height(300.dp)) {
-                    items(AppTheme.values()) { theme ->
-                        Button(
-                            onClick = { onThemeSelected(theme) },
-                            modifier = Modifier.padding(4.dp)
-                        ) {
-                            Text(theme.displayName)
-                        }
-                    }
                 }
             }
         }
