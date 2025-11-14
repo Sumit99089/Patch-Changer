@@ -119,7 +119,7 @@ object AppModule {
             AppDatabase::class.java,
             "live_patch_controller_db"
         )
-            .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigration(false)
             // CHANGED: We now create the callback instance manually right here.
             // This avoids the public/internal visibility conflict.
             .addCallback(AppDatabaseCallback(patchSlotDao, bankDao, pageDao, scope))

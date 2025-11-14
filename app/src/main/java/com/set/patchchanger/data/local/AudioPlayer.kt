@@ -8,9 +8,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AudioPlayer @Inject constructor(
-    @ApplicationContext private val context: Context
-) {
+class AudioPlayer @Inject constructor() {
     private val soundPool: SoundPool = SoundPool.Builder()
         .setMaxStreams(4)
         .setAudioAttributes(

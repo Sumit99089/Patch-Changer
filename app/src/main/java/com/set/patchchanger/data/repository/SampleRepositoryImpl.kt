@@ -4,10 +4,10 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.SoundPool
 import android.net.Uri
-import com.set.patchchanger.data.local.AudioLibraryDao
-import com.set.patchchanger.data.local.AudioLibraryEntity
-import com.set.patchchanger.data.local.SampleDao
-import com.set.patchchanger.data.local.SampleEntity
+import com.set.patchchanger.data.local.dao.AudioLibraryDao
+import com.set.patchchanger.data.local.entities.AudioLibraryEntity
+import com.set.patchchanger.data.local.dao.SampleDao
+import com.set.patchchanger.data.local.entities.SampleEntity
 import com.set.patchchanger.domain.model.AudioLibraryItem
 import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.domain.repository.AudioLibraryRepository

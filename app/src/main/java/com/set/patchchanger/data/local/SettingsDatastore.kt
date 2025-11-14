@@ -27,7 +27,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
  */
 @Singleton
 class SettingsDataStore @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     /**
      * Preference keys for type-safe access.

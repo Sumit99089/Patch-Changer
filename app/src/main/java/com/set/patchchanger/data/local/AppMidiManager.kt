@@ -5,6 +5,10 @@ import android.media.midi.MidiDevice
 import android.media.midi.MidiDeviceInfo
 import android.media.midi.MidiInputPort
 import android.media.midi.MidiManager
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import androidx.core.content.ContextCompat
 import com.set.patchchanger.domain.model.MidiConnectionState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,27 +58,39 @@ class AppMidiManager @Inject constructor(
     }
 
     init {
-        // Register for device hotplug events
-        systemMidiManager?.registerDeviceCallback(deviceCallback, null)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // API-33
+            val transport = MidiManager.TRANSPORT_MIDI_BYTE_STREAM
+            val executor = ContextCompat.getMainExecutor(context)
+            systemMidiManager?.registerDeviceCallback(transport, executor, deviceCallback)
+        } else {
+            val handler = Handler(Looper.getMainLooper())
+            systemMidiManager?.registerDeviceCallback(deviceCallback, handler)
+        }
+
     }
 
     /**
      * Gets list of available MIDI devices.
      */
     fun getAvailableDevices(): List<Pair<String, MidiDeviceInfo>> {
-        val devices = systemMidiManager?.devices ?: return emptyList()
-        return devices.mapNotNull { info ->
-            // Filter out "Through" and virtual ports
-            val name =
-                info.properties.getString(MidiDeviceInfo.PROPERTY_NAME) ?: return@mapNotNull null
+        val infos: Collection<MidiDeviceInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // API 33+: use new API
+            systemMidiManager
+                ?.getDevicesForTransport(MidiManager.TRANSPORT_MIDI_BYTE_STREAM)
+                ?: emptySet()
+        } else {
+            // Older APIs: use deprecated array version
+            systemMidiManager?.devices?.toList() ?: emptyList()
+        }
+
+        return infos.mapNotNull { info ->
+            val name = info.properties.getString(MidiDeviceInfo.PROPERTY_NAME) ?: return@mapNotNull null
             if (name.contains("through", ignoreCase = true)) return@mapNotNull null
-
-            // CHANGED: Check for inputPortCount because we want to send data TO the device
             if (info.inputPortCount == 0) return@mapNotNull null
-
             name to info
         }
     }
+
 
     /**
      * Connects to a MIDI device.
