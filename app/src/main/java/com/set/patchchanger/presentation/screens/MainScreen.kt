@@ -6,16 +6,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,16 +58,25 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.set.patchchanger.domain.model.AppTheme
 import com.set.patchchanger.domain.model.MidiConnectionState
@@ -76,6 +88,18 @@ import com.set.patchchanger.presentation.viewmodel.MainViewModel
 import com.set.patchchanger.presentation.viewmodel.UiEvent
 import com.set.patchchanger.ui.theme.PatchChangerTheme
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+
+/**
+ * Internal state holder for drag-and-drop operations within the grid.
+ */
+private data class DragState(
+    val isDragging: Boolean = false,
+    val draggedSlot: PatchSlot? = null,
+    val dragOffset: Offset = Offset.Zero,
+    val dropTargetSlot: PatchSlot? = null
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,9 +107,11 @@ fun MainScreen(
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    // Get the theme from the state, defaulting to BLACK if not loaded yet
     val currentTheme = (uiState as? MainUiState.Success)?.settings?.theme ?: AppTheme.BLACK
 
-    PatchChangerTheme {
+    // Pass the currentTheme to the PatchChangerTheme
+    PatchChangerTheme(appTheme = currentTheme) {
         MainScreenContent(viewModel, uiState)
     }
 }
@@ -157,7 +183,7 @@ fun MainScreenContent(
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            when (val state = uiState) {
+            when (uiState) {
                 is MainUiState.Success -> {
                     Column(
                         Modifier
@@ -190,7 +216,7 @@ fun MainScreenContent(
 
                         // Compact Controls Row
                         CompactControlsBar(
-                            state = state,
+                            state = uiState,
                             onEvent = viewModel::onEvent
                         )
 
@@ -198,7 +224,7 @@ fun MainScreenContent(
 
                         // Compact Selector Bar
                         CompactSelectorBar(
-                            state = state,
+                            state = uiState,
                             onEvent = viewModel::onEvent,
                             onToggleEdit = { isEditMode = !isEditMode },
                             isEditMode = isEditMode
@@ -211,19 +237,20 @@ fun MainScreenContent(
                             .weight(1f)
                             .fillMaxWidth()) {
                             PatchGrid(
-                                patchData = state.patchData,
-                                currentBankIndex = state.settings.currentBankIndex,
-                                currentPageIndex = state.settings.currentPageIndex,
+                                patchData = uiState.patchData,
+                                currentBankIndex = uiState.settings.currentBankIndex,
+                                currentPageIndex = uiState.settings.currentPageIndex,
                                 isEditMode = isEditMode,
                                 onSlotClick = { slot ->
-                                    if (isEditMode) {
-                                        viewModel.onEvent(MainEvent.ShowSlotColorDialog(slot))
-                                    } else {
-                                        viewModel.onEvent(MainEvent.SelectSlot(slot.id))
-                                    }
+                                    // This is for NORMAL mode
+                                    viewModel.onEvent(MainEvent.SelectSlot(slot.id))
                                 },
-                                onSlotLongClick = { slot ->
+                                onSlotEdit = { slot ->
+                                    // This is for EDIT mode (Tap)
                                     viewModel.onEvent(MainEvent.ShowSlotColorDialog(slot))
+                                },
+                                onSlotSwap = { sourceId, targetId ->
+                                    viewModel.onEvent(MainEvent.SwapSlots(sourceId, targetId))
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -231,7 +258,7 @@ fun MainScreenContent(
                     }
 
                     // --- Dialogs ---
-                    if (state.showResetDialog) {
+                    if (uiState.showResetDialog) {
                         ConfirmationDialog(
                             title = "Reset All Data",
                             text = "Are you sure you want to reset all data, including the audio library?",
@@ -239,14 +266,14 @@ fun MainScreenContent(
                             onDismiss = { viewModel.onEvent(MainEvent.ShowResetDialog(false)) }
                         )
                     }
-                    if (state.showBankPageNameDialog) {
+                    if (uiState.showBankPageNameDialog) {
                         BankPageNameDialog(
-                            state = state,
+                            state = uiState,
                             onDismiss = { viewModel.onEvent(MainEvent.ShowBankPageNameDialog(false)) },
                             onSaveBank = {
                                 viewModel.onEvent(
                                     MainEvent.UpdateBankName(
-                                        state.settings.currentBankIndex,
+                                        uiState.settings.currentBankIndex,
                                         it
                                     )
                                 )
@@ -254,14 +281,14 @@ fun MainScreenContent(
                             onSavePage = {
                                 viewModel.onEvent(
                                     MainEvent.UpdatePageName(
-                                        state.settings.currentPageIndex,
+                                        uiState.settings.currentPageIndex,
                                         it
                                     )
                                 )
                             }
                         )
                     }
-                    state.editingSample?.let { sample ->
+                    uiState.editingSample?.let { sample ->
                         EditSampleDialog(
                             sample = sample,
                             onDismiss = { viewModel.onEvent(MainEvent.ShowEditSampleDialog(null)) },
@@ -279,16 +306,16 @@ fun MainScreenContent(
                             onEditColor = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(sample)) }
                         )
                     }
-                    if (state.showAudioLibrary) {
+                    if (uiState.showAudioLibrary) {
                         AudioLibraryDialog(
-                            library = state.audioLibrary,
+                            library = uiState.audioLibrary,
                             onDismiss = { viewModel.onEvent(MainEvent.ShowAudioLibrary(false)) },
                             onSelect = { viewModel.onEvent(MainEvent.SelectSampleFromLibrary(it)) },
                             onDelete = { viewModel.onEvent(MainEvent.DeleteFromAudioLibrary(it)) },
                             onAddFile = { libraryPickerLauncher.launch("audio/*") }
                         )
                     }
-                    state.slotToPaste?.let { slot ->
+                    uiState.slotToPaste?.let { slot ->
                         ConfirmationDialog(
                             title = "Confirm Paste",
                             text = "Paste '${viewModel.internalState.value.slotToPaste?.getDisplayName() ?: "..."}' over '${slot.getDisplayName()}'?",
@@ -296,7 +323,7 @@ fun MainScreenContent(
                             onDismiss = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(null)) }
                         )
                     }
-                    state.slotToClear?.let { slot ->
+                    uiState.slotToClear?.let { slot ->
                         ConfirmationDialog(
                             title = "Clear Slot",
                             text = "Are you sure you want to clear slot '${slot.getDisplayName()}'?",
@@ -304,9 +331,9 @@ fun MainScreenContent(
                             onDismiss = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(null)) }
                         )
                     }
-                    state.slotToSwap?.let { slot ->
+                    uiState.slotToSwap?.let { slot ->
                         SwapDialog(
-                            currentPageSlots = state.patchData.banks[state.settings.currentBankIndex].pages[state.settings.currentPageIndex].slots,
+                            currentPageSlots = uiState.patchData.banks[uiState.settings.currentBankIndex].pages[uiState.settings.currentPageIndex].slots,
                             sourceSlot = slot,
                             onDismiss = { viewModel.onEvent(MainEvent.ShowSwapDialog(null)) },
                             onSelectSlot = { targetSlot ->
@@ -314,7 +341,7 @@ fun MainScreenContent(
                             }
                         )
                     }
-                    state.slotToEditColor?.let { slot ->
+                    uiState.slotToEditColor?.let { slot ->
                         EditSlotDialog(
                             slot = slot,
                             onDismiss = { viewModel.onEvent(MainEvent.ShowSlotColorDialog(null)) },
@@ -323,10 +350,10 @@ fun MainScreenContent(
                             onPaste = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(slot)) },
                             onSwap = { viewModel.onEvent(MainEvent.ShowSwapDialog(slot)) },
                             onClear = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(slot)) },
-                            samples = state.samples
+                            samples = uiState.samples
                         )
                     }
-                    state.sampleToEditColor?.let { sample ->
+                    uiState.sampleToEditColor?.let { sample ->
                         ColorPickerDialog(
                             onDismiss = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(null)) },
                             onColorSelected = { colorHex ->
@@ -340,7 +367,7 @@ fun MainScreenContent(
 
                 is MainUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 is MainUiState.Error -> Text(
-                    "Error: ${state.message}",
+                    "Error: ${uiState.message}",
                     color = Color.Red,
                     modifier = Modifier.align(Alignment.Center)
                 )
@@ -575,85 +602,272 @@ fun CompactSelector(
     }
 }
 
+/**
+ * This is the visual representation of a slot.
+ * It's stateless and just displays based on props.
+ */
+@Composable
+fun PatchSlotCard(
+    slot: PatchSlot,
+    isEditMode: Boolean,
+    isBeingDragged: Boolean,
+    isDropTarget: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val bgColor = try {
+        Color(android.graphics.Color.parseColor(slot.color))
+    } catch (e: Exception) {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    // Determine border style based on state
+    val borderColor = when {
+        isDropTarget -> Color.Yellow // Highlight for drop target
+        slot.selected && !isEditMode -> Color(0xFFFFA726)
+        isEditMode -> Color.White.copy(alpha = 0.3f)
+        else -> Color.Transparent
+    }
+    val borderWidth = when {
+        isDropTarget -> 3.dp // Thicker border for drop
+        slot.selected || isEditMode -> 2.dp
+        else -> 0.dp
+    }
+
+    Card(
+        modifier = modifier
+            .graphicsLayer {
+                // Hide the original item while dragging
+                alpha = if (isBeingDragged) 0f else 1f
+            },
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        border = BorderStroke(borderWidth, borderColor),
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(2.dp), contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = slot.getDisplayName(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(2.dp)
+            )
+        }
+    }
+}
+
+/**
+ * This composable wraps PatchSlotCard with gesture detection
+ * and layout positioning logic for drag-and-drop.
+ */
+@Composable
+fun RowScope.PatchSlotItem(
+    slot: PatchSlot,
+    isEditMode: Boolean,
+    isBeingDragged: Boolean,
+    isDropTarget: Boolean,
+    onGloballyPositioned: (Rect) -> Unit,
+    onDragStart: () -> Unit,
+    onDragEnd: () -> Unit,
+    onDrag: (Offset) -> Unit,
+    onClick: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+
+    PatchSlotCard(
+        slot = slot,
+        isEditMode = isEditMode,
+        isBeingDragged = isBeingDragged,
+        isDropTarget = isDropTarget,
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .onGloballyPositioned { layoutCoordinates ->
+                // Get the bounds relative to the root of the app window
+                onGloballyPositioned(Rect(layoutCoordinates.localToRoot(Offset.Zero), layoutCoordinates.size.toSize()))
+            }
+            .pointerInput(isEditMode) { // Re-init gesture detector if isEditMode changes
+                if (isEditMode) {
+                    // Only allow dragging in edit mode
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = {
+                            scope.launch { onDragStart() }
+                        },
+                        onDragEnd = {
+                            scope.launch { onDragEnd() }
+                        },
+                        onDragCancel = {
+                            scope.launch { onDragEnd() } // Treat cancel as end
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            scope.launch { onDrag(dragAmount) }
+                        }
+                    )
+                }
+            }
+            .clickable {
+                // Click is separate from drag
+                onClick()
+            }
+    )
+}
+
+
 @Composable
 fun PatchGrid(
     patchData: PatchData,
     currentBankIndex: Int,
     currentPageIndex: Int,
     isEditMode: Boolean,
-    onSlotClick: (PatchSlot) -> Unit,
-    onSlotLongClick: (PatchSlot) -> Unit,
+    onSlotClick: (PatchSlot) -> Unit, // For normal mode
+    onSlotEdit: (PatchSlot) -> Unit,  // For edit mode (tap)
+    onSlotSwap: (Int, Int) -> Unit, // For drag/drop
     modifier: Modifier = Modifier
 ) {
     val page = patchData.banks.getOrNull(currentBankIndex)?.pages?.getOrNull(currentPageIndex)
+    val slots = page?.slots
 
-    page?.slots?.let { slots ->
-        Column(
-            modifier = modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            repeat(4) { rowIndex ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    repeat(4) { colIndex ->
-                        val slotIndex = rowIndex * 4 + colIndex
-                        if (slotIndex < slots.size) {
-                            val slot = slots[slotIndex]
-                            val bgColor = try {
-                                Color(android.graphics.Color.parseColor(slot.color))
-                            } catch (e: Exception) {
-                                MaterialTheme.colorScheme.surfaceVariant
-                            }
-                            val borderColor =
-                                if (slot.selected && !isEditMode) Color(0xFFFFA726) else if (isEditMode) Color.White.copy(
-                                    alpha = 0.3f
-                                ) else Color.Transparent
-                            val borderWidth = if (slot.selected || isEditMode) 2.dp else 0.dp
+    // State for drag operation
+    var dragState by remember { mutableStateOf(DragState()) }
+    // Map to store the on-screen bounds of each slot
+    val slotBounds = remember { mutableMapOf<Int, Rect>() }
+    val scope = rememberCoroutineScope()
 
-                            Card(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .clickable {
-                                        if (isEditMode) {
-                                            onSlotLongClick(slot)
-                                        } else {
-                                            onSlotClick(slot)
+    if (slots != null) {
+        // This outer Box contains both the grid and the "ghost" item being dragged
+        Box(modifier = modifier.fillMaxSize()) {
+
+            // The 4x4 Grid
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                repeat(4) { rowIndex ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        repeat(4) { colIndex ->
+                            val slotIndex = rowIndex * 4 + colIndex
+                            if (slotIndex < slots.size) {
+                                val slot = slots[slotIndex]
+
+                                PatchSlotItem(
+                                    slot = slot,
+                                    isEditMode = isEditMode,
+                                    isBeingDragged = dragState.draggedSlot?.id == slot.id,
+                                    isDropTarget = dragState.dropTargetSlot?.id == slot.id,
+                                    onGloballyPositioned = { bounds ->
+                                        // Store this slot's screen bounds
+                                        slotBounds[slot.id] = bounds
+                                    },
+                                    onDragStart = {
+                                        dragState = dragState.copy(
+                                            isDragging = true,
+                                            draggedSlot = slot,
+                                            dragOffset = Offset.Zero // Reset offset
+                                        )
+                                    },
+                                    onDragEnd = {
+                                        // Check if we dropped on a valid target
+                                        dragState.dropTargetSlot?.let { target ->
+                                            dragState.draggedSlot?.let { source ->
+                                                if (source.id != target.id) {
+                                                    onSlotSwap(source.id, target.id)
+                                                }
+                                            }
+                                        }
+                                        // Reset state regardless of drop
+                                        dragState = DragState()
+                                    },
+                                    onDrag = { offsetChange ->
+                                        if (dragState.isDragging) {
+                                            // Update the drag offset
+                                            dragState = dragState.copy(
+                                                dragOffset = dragState.dragOffset + offsetChange
+                                            )
+
+                                            // Calculate the current center of the dragged item
+                                            val dragCenter = slotBounds[slot.id]?.center
+                                                ?.plus(dragState.dragOffset)
+
+                                            if (dragCenter != null) {
+                                                // Find if this center is inside another slot's bounds
+                                                val targetEntry = slotBounds.entries.find { (id, bounds) ->
+                                                    id != slot.id && bounds.contains(dragCenter)
+                                                }
+                                                // Update the drop target
+                                                dragState = dragState.copy(
+                                                    dropTargetSlot = targetEntry?.let { entry ->
+                                                        slots.find { s -> s.id == entry.key }
+                                                    }
+                                                )
+                                            }
                                         }
                                     },
-                                colors = CardDefaults.cardColors(containerColor = bgColor),
-                                border = BorderStroke(borderWidth, borderColor),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Box(
-                                    Modifier
-                                        .fillMaxSize()
-                                        .padding(2.dp), contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = slot.getDisplayName(),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White,
-                                        textAlign = TextAlign.Center,
-                                        fontSize = 11.sp,
-                                        modifier = Modifier.padding(2.dp)
-                                    )
-                                }
+                                    onClick = {
+                                        if (isEditMode) {
+                                            onSlotEdit(slot) // Tap in edit mode
+                                        } else {
+                                            onSlotClick(slot) // Tap in normal mode
+                                        }
+                                    }
+                                )
+                            } else {
+                                Spacer(Modifier.weight(1f)) // Placeholder for empty grid slots
                             }
-                        } else {
-                            Spacer(Modifier.weight(1f))
                         }
                     }
                 }
+            } // End Column (Grid)
+
+            // --- DRAG GHOST ---
+            // This is drawn on top of the grid when dragging
+            if (dragState.isDragging && dragState.draggedSlot != null) {
+                val slot = dragState.draggedSlot!!
+                val bounds = slotBounds[slot.id]
+                if (bounds != null) { // Only draw if we have bounds
+                    Box(
+                        modifier = Modifier
+                            .zIndex(10f) // Ensure it's on top
+                            .offset {
+                                // Position the ghost using the start offset + drag offset
+                                IntOffset(
+                                    (bounds.topLeft.x + dragState.dragOffset.x).roundToInt(),
+                                    (bounds.topLeft.y + dragState.dragOffset.y).roundToInt()
+                                )
+                            }
+                            .width(bounds.width.dp) // Use measured width
+                            .height(bounds.height.dp) // Use measured height
+                            .graphicsLayer(
+                                alpha = 0.8f, // Make it semi-transparent
+                                scaleX = 1.05f, // Make it slightly bigger
+                                scaleY = 1.05f
+                            )
+                    ) {
+                        // Re-compose the slot's visual card for the ghost
+                        PatchSlotCard(
+                            slot = slot,
+                            isEditMode = true, // Show edit mode visuals
+                            isBeingDragged = false, // Don't hide the ghost
+                            isDropTarget = false,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
             }
-        }
+        } // End outer Box
     }
 }
+
 
 @Composable
 fun BottomBar(

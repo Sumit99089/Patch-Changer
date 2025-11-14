@@ -20,7 +20,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class AppMidiManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     // Explicitly use the system MidiManager type
     private val systemMidiManager: MidiManager? =

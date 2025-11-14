@@ -31,7 +31,7 @@ class PatchRepositoryImpl @Inject constructor(
     private val patchSlotDao: PatchSlotDao,
     private val bankDao: BankDao,
     private val pageDao: PageDao,
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : PatchRepository {
 
     override fun observePatchData(): Flow<PatchData> = combine(
