@@ -292,6 +292,7 @@ class GetPerformancesUseCase @Inject constructor() {
      */
     operator fun invoke(category: String, bankIndex: Int): List<Performance> {
         val categoryData = performanceData[category] ?: return emptyList()
+        // Use the bankIndex to get the bank, not find by index
         val bank = categoryData.banks.getOrNull(bankIndex) ?: return emptyList()
 
         return (0 until bank.pcCount).map { pc ->

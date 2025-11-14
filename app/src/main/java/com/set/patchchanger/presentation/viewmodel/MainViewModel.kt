@@ -11,6 +11,7 @@ import com.set.patchchanger.domain.model.AudioLibraryItem
 import com.set.patchchanger.domain.model.MidiConnectionState
 import com.set.patchchanger.domain.model.PatchData
 import com.set.patchchanger.domain.model.PatchSlot
+import com.set.patchchanger.domain.model.Performance
 import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.domain.model.SearchResult
 import com.set.patchchanger.domain.repository.AudioLibraryRepository
@@ -19,6 +20,7 @@ import com.set.patchchanger.domain.repository.PatchRepository
 import com.set.patchchanger.domain.repository.SampleRepository
 import com.set.patchchanger.domain.repository.SettingsRepository
 import com.set.patchchanger.domain.usecase.ExportDataUseCase
+import com.set.patchchanger.domain.usecase.GetPerformancesUseCase
 import com.set.patchchanger.domain.usecase.ImportDataUseCase
 import com.set.patchchanger.domain.usecase.NavigateBankUseCase
 import com.set.patchchanger.domain.usecase.NavigatePageUseCase
@@ -37,7 +39,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
@@ -83,7 +84,16 @@ sealed class MainUiState {
         val slotToClear: PatchSlot? = null,
         val slotToSwap: PatchSlot? = null,
         val slotToEditColor: PatchSlot? = null,
-        val sampleToEditColor: SamplePad? = null
+        val sampleToEditColor: SamplePad? = null,
+        // Performance Browser State
+        val showPerformanceBrowser: Boolean = false,
+        val slotToEditPerformance: PatchSlot? = null,
+        val performanceCategories: List<String> = emptyList(),
+        val performanceSelectedCategory: String? = null,
+        val performanceBanks: List<GetPerformancesUseCase.PerformanceBank> = emptyList(),
+        val performanceSelectedBankIndex: Int = -1,
+        val performances: List<Performance> = emptyList(),
+        val performanceSearchQuery: String = ""
     ) : MainUiState()
 
     data class Error(val message: String) : MainUiState()
@@ -140,6 +150,14 @@ sealed class MainEvent {
     data class DeleteFromAudioLibrary(val item: AudioLibraryItem) : MainEvent()
     data class SelectSampleFromLibrary(val item: AudioLibraryItem) : MainEvent()
     data class TriggerSample(val sampleId: Int) : MainEvent()
+
+    // Performance Browser Events
+    data class ShowPerformanceBrowser(val slot: PatchSlot) : MainEvent()
+    object HidePerformanceBrowser : MainEvent()
+    data class SelectPerformanceCategory(val category: String) : MainEvent()
+    data class SelectPerformanceBank(val bankIndex: Int) : MainEvent()
+    data class SelectPerformance(val performance: Performance) : MainEvent()
+    data class UpdatePerformanceSearch(val query: String) : MainEvent()
 }
 
 @HiltViewModel
@@ -156,6 +174,7 @@ class MainViewModel @Inject constructor(
     private val navigatePageUseCase: NavigatePageUseCase,
     private val exportDataUseCase: ExportDataUseCase,
     private val importDataUseCase: ImportDataUseCase,
+    private val getPerformancesUseCase: GetPerformancesUseCase, // Added UseCase
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -213,7 +232,16 @@ class MainViewModel @Inject constructor(
             slotToClear = internal.slotToClear,
             slotToSwap = internal.slotToSwap,
             slotToEditColor = internal.slotToEditColor,
-            sampleToEditColor = internal.sampleToEditColor
+            sampleToEditColor = internal.sampleToEditColor,
+            // Performance Browser State
+            showPerformanceBrowser = internal.showPerformanceBrowser,
+            slotToEditPerformance = internal.slotToEditPerformance,
+            performanceCategories = internal.performanceCategories,
+            performanceSelectedCategory = internal.performanceSelectedCategory,
+            performanceBanks = internal.performanceBanks,
+            performanceSelectedBankIndex = internal.performanceSelectedBankIndex,
+            performances = internal.performances,
+            performanceSearchQuery = internal.performanceSearchQuery
         )
     }.stateIn(
         scope = viewModelScope,
@@ -485,6 +513,78 @@ class MainViewModel @Inject constructor(
                         }
                     }
                 }
+
+                // --- Performance Browser Events ---
+                is MainEvent.ShowPerformanceBrowser -> {
+                    val categories = getPerformancesUseCase.getCategories()
+                    _internalState.update {
+                        it.copy(
+                            showPerformanceBrowser = true,
+                            slotToEditPerformance = event.slot,
+                            performanceCategories = categories,
+                            performanceSelectedCategory = null,
+                            performanceBanks = emptyList(),
+                            performanceSelectedBankIndex = -1,
+                            performances = emptyList(),
+                            performanceSearchQuery = ""
+                        )
+                    }
+                }
+
+                is MainEvent.HidePerformanceBrowser -> {
+                    _internalState.update {
+                        it.copy(
+                            showPerformanceBrowser = false,
+                            slotToEditPerformance = null
+                        )
+                    }
+                }
+
+                is MainEvent.SelectPerformanceCategory -> {
+                    val banks = getPerformancesUseCase.getBanks(event.category)
+                    _internalState.update {
+                        it.copy(
+                            performanceSelectedCategory = event.category,
+                            performanceBanks = banks,
+                            performanceSelectedBankIndex = -1,
+                            performances = emptyList()
+                        )
+                    }
+                }
+
+                is MainEvent.SelectPerformanceBank -> {
+                    val category = _internalState.value.performanceSelectedCategory ?: return@launch
+                    val perfs = getPerformancesUseCase(category, event.bankIndex)
+                    _internalState.update {
+                        it.copy(
+                            performanceSelectedBankIndex = event.bankIndex,
+                            performances = perfs
+                        )
+                    }
+                }
+
+                is MainEvent.SelectPerformance -> {
+                    val slot = _internalState.value.slotToEditPerformance ?: return@launch
+                    val updatedSlot = slot.copy(
+                        msb = event.performance.msb,
+                        lsb = event.performance.lsb,
+                        pc = event.performance.pc,
+                        performanceName = event.performance.name
+                    )
+                    patchRepository.updateSlot(updatedSlot)
+                    _internalState.update {
+                        it.copy(
+                            showPerformanceBrowser = false,
+                            slotToEditPerformance = null,
+                            // Update the slot in the dialog as well
+                            slotToEditColor = updatedSlot
+                        )
+                    }
+                }
+
+                is MainEvent.UpdatePerformanceSearch -> {
+                    _internalState.update { it.copy(performanceSearchQuery = event.query) }
+                }
             }
         }
     }
@@ -550,5 +650,14 @@ data class InternalState(
     val slotToClear: PatchSlot? = null,
     val slotToSwap: PatchSlot? = null,
     val slotToEditColor: PatchSlot? = null,
-    val sampleToEditColor: SamplePad? = null
+    val sampleToEditColor: SamplePad? = null,
+    // Performance Browser State
+    val showPerformanceBrowser: Boolean = false,
+    val slotToEditPerformance: PatchSlot? = null,
+    val performanceCategories: List<String> = emptyList(),
+    val performanceSelectedCategory: String? = null,
+    val performanceBanks: List<GetPerformancesUseCase.PerformanceBank> = emptyList(),
+    val performanceSelectedBankIndex: Int = -1,
+    val performances: List<Performance> = emptyList(),
+    val performanceSearchQuery: String = ""
 )

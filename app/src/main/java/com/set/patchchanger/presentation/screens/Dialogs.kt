@@ -1,5 +1,6 @@
 package com.set.patchchanger.presentation.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,6 +36,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
@@ -45,23 +47,29 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.set.patchchanger.domain.model.AudioLibraryItem
 import com.set.patchchanger.domain.model.DisplayNameType
 import com.set.patchchanger.domain.model.PatchSlot
 import com.set.patchchanger.domain.model.SamplePad
+import com.set.patchchanger.presentation.viewmodel.MainEvent
 import com.set.patchchanger.presentation.viewmodel.MainUiState
 import com.set.patchchanger.ui.theme.getModxColors
+import androidx.core.graphics.toColorInt
 
 /**
  * Generic confirmation dialog
@@ -168,11 +176,12 @@ fun EditSampleDialog(
     onEditColor: () -> Unit
 ) {
     var name by remember(sample.name) { mutableStateOf(sample.name) }
-    var volume by remember(sample.volume) { mutableStateOf(sample.volume.toFloat()) }
+    var volume by remember(sample.volume) { mutableFloatStateOf(sample.volume.toFloat()) }
     var loop by remember(sample.loop) { mutableStateOf(sample.loop) }
     val buttonColor = try {
-        Color(android.graphics.Color.parseColor(sample.color))
+        Color(sample.color.toColorInt())
     } catch (e: Exception) {
+        Toast.makeText(LocalContext.current ,"Some Error Occurred: ${e.message}", Toast.LENGTH_LONG).show( )
         MaterialTheme.colorScheme.primary
     }
 
@@ -295,7 +304,7 @@ fun ColorPickerDialog(
                                 .padding(4.dp)
                                 .aspectRatio(1f)
                                 .background(
-                                    Color(android.graphics.Color.parseColor(color.hex)),
+                                    Color(color.hex.toColorInt()),
                                     CircleShape
                                 )
                                 .clickable { onColorSelected(color.hex) },
@@ -415,14 +424,15 @@ fun EditSlotDialog(
     onCopy: () -> Unit,
     onPaste: () -> Unit,
     onSwap: () -> Unit,
-    onClear: () -> Unit
+    onClear: () -> Unit,
+    onShowPerformanceBrowser: () -> Unit // Added
 ) {
     var name by remember(slot.name) { mutableStateOf(slot.name) }
     var displayNameType by remember(slot.displayNameType) { mutableStateOf(slot.displayNameType) }
-    var assignedSample by remember(slot.assignedSample) { mutableStateOf(slot.assignedSample) }
+    var assignedSample by remember(slot.assignedSample) { mutableIntStateOf(slot.assignedSample) }
     var colorHex by remember(slot.color) { mutableStateOf(slot.color) }
     var showColorPicker by remember { mutableStateOf(false) }
-    var showPerfBrowser by remember { mutableStateOf(false) }
+    // var showPerfBrowser by remember { mutableStateOf(false) } // Removed
 
     Dialog(onDismissRequest = onDismiss) {
         Card(shape = RoundedCornerShape(8.dp)) {
@@ -475,16 +485,21 @@ fun EditSlotDialog(
 
                 // Assign Performance
                 Text("Assigned Performance", fontWeight = FontWeight.Bold)
-                OutlinedTextField(
-                    value = slot.performanceName,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Performance") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showPerfBrowser = true },
-                    enabled = false // Make it look clickable but not editable
-                )
+                // Updated this section
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = slot.performanceName,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Performance") },
+                        modifier = Modifier.weight(1f),
+                        enabled = false // Make it look disabled but readable
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = onShowPerformanceBrowser) {
+                        Text("Select")
+                    }
+                }
                 Spacer(Modifier.height(16.dp))
 
                 // Assign Sample Pad
@@ -502,7 +517,10 @@ fun EditSlotDialog(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = sampleDropdownExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor()
+                            .menuAnchor(
+                                type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                enabled = true
+                            )
                     )
                     ExposedDropdownMenu(
                         expanded = sampleDropdownExpanded,
@@ -570,7 +588,7 @@ fun EditSlotDialog(
                                 displayNameType = displayNameType,
                                 assignedSample = assignedSample,
                                 color = colorHex
-                                // TODO: Update MSB/LSB/PC/PerfName from Perf Browser
+                                // Performance data is saved separately by SelectPerformance event
                             )
                         )
                         onDismiss()
@@ -584,22 +602,12 @@ fun EditSlotDialog(
 
     if (showColorPicker) {
         ColorPickerDialog(
-            onDismiss = { showColorPicker = false },
-            onColorSelected = { colorHex = it; showColorPicker = false }
+            onDismiss = { },
+            onColorSelected = { colorHex = it }
         )
     }
 
-    if (showPerfBrowser) {
-        // TODO: Implement Performance Browser Dialog
-        // This is a complex dialog shown in the video, skipping for brevity
-        // For now, just a placeholder dialog
-        AlertDialog(
-            onDismissRequest = { showPerfBrowser = false },
-            title = { Text("Performance Browser") },
-            text = { Text("This would show the performance list.") },
-            confirmButton = { Button(onClick = { showPerfBrowser = false }) { Text("OK") } }
-        )
-    }
+    // Removed the placeholder performance browser
 }
 
 /**
@@ -631,8 +639,9 @@ fun SwapDialog(
                 ) {
                     items(currentPageSlots.filter { it.id != sourceSlot.id }) { slot ->
                         val bgColor = try {
-                            Color(android.graphics.Color.parseColor(slot.color))
+                            Color(slot.color.toColorInt())
                         } catch (e: Exception) {
+                            Toast.makeText(LocalContext.current ,"Some Error Occurred: ${e.message}", Toast.LENGTH_LONG).show( )
                             MaterialTheme.colorScheme.surfaceVariant
                         }
                         Card(
@@ -663,6 +672,176 @@ fun SwapDialog(
                 Spacer(Modifier.height(16.dp))
                 TextButton(
                     onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * New Dialog for browsing and selecting performances
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PerformanceBrowserDialog(
+    uiState: MainUiState.Success,
+    onEvent: (MainEvent) -> Unit
+) {
+    Dialog(
+        onDismissRequest = { onEvent(MainEvent.HidePerformanceBrowser) },
+        properties = DialogProperties(usePlatformDefaultWidth = false) // Fullscreen-style dialog
+    ) {
+        Card(
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 16.dp, horizontal = 8.dp) // Add padding
+        ) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                Text("Performance Browser", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(16.dp))
+
+                // --- Category Dropdown ---
+                var categoryExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = categoryExpanded,
+                    onExpandedChange = { categoryExpanded = !categoryExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = uiState.performanceSelectedCategory ?: "Select Category...",
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(
+                                type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                enabled = true
+                            )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = categoryExpanded,
+                        onDismissRequest = { categoryExpanded = false },
+                        modifier = Modifier.heightIn(max = 300.dp) // Limit height
+                    ) {
+                        uiState.performanceCategories.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                onClick = {
+                                    onEvent(MainEvent.SelectPerformanceCategory(category))
+                                    categoryExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // --- Bank Dropdown ---
+                var bankExpanded by remember { mutableStateOf(false) }
+                val selectedBankName = if (uiState.performanceSelectedBankIndex == -1) "Select Bank..." else uiState.performanceBanks.getOrNull(uiState.performanceSelectedBankIndex)?.name
+                ExposedDropdownMenuBox(
+                    expanded = bankExpanded,
+                    onExpandedChange = { bankExpanded = !bankExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = selectedBankName ?: "Select Bank...",
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = bankExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(
+                                type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                enabled = true
+                            ),
+                        enabled = uiState.performanceSelectedCategory != null
+                    )
+                    ExposedDropdownMenu(
+                        expanded = bankExpanded,
+                        onDismissRequest = { bankExpanded = false },
+                        modifier = Modifier.heightIn(max = 300.dp) // Limit height
+                    ) {
+                        uiState.performanceBanks.forEachIndexed { index, bank ->
+                            DropdownMenuItem(
+                                text = { Text(bank.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                onClick = {
+                                    onEvent(MainEvent.SelectPerformanceBank(index))
+                                    bankExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // --- Search Input ---
+                OutlinedTextField(
+                    value = uiState.performanceSearchQuery,
+                    onValueChange = { onEvent(MainEvent.UpdatePerformanceSearch(it)) },
+                    label = { Text("Search performances...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = uiState.performanceSelectedBankIndex != -1,
+                    singleLine = true
+                )
+                Spacer(Modifier.height(8.dp))
+
+                // --- Performance List ---
+                val filteredPerformances = uiState.performances.filter {
+                    it.name.contains(uiState.performanceSearchQuery, ignoreCase = true)
+                }
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+                ) {
+                    if (uiState.performanceSelectedBankIndex == -1) {
+                        item {
+                            Text(
+                                "Please select a bank to see performances.",
+                                modifier = Modifier.padding(16.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    } else if (filteredPerformances.isEmpty()) {
+                        item {
+                            Text(
+                                if (uiState.performanceSearchQuery.isNotEmpty()) "No results found." else "No performances in this bank.",
+                                modifier = Modifier.padding(16.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                    items(filteredPerformances) { performance ->
+                        Text(
+                            text = performance.name,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onEvent(MainEvent.SelectPerformance(performance)) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+                // --- Cancel Button ---
+                TextButton(
+                    onClick = { onEvent(MainEvent.HidePerformanceBrowser) },
                     modifier = Modifier.align(Alignment.End)
                 ) {
                     Text("Cancel")

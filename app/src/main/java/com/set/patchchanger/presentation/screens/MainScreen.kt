@@ -342,7 +342,8 @@ fun HandleDialogs(
             onPaste = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(slot)) },
             onSwap = { viewModel.onEvent(MainEvent.ShowSwapDialog(slot)) },
             onClear = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(slot)) },
-            samples = uiState.samples
+            samples = uiState.samples,
+            onShowPerformanceBrowser = { viewModel.onEvent(MainEvent.ShowPerformanceBrowser(slot)) } // Added
         )
     }
 
@@ -353,6 +354,14 @@ fun HandleDialogs(
                 viewModel.onEvent(MainEvent.UpdateSample(sample.copy(color = colorHex)))
                 viewModel.onEvent(MainEvent.ShowSampleColorDialog(null))
             }
+        )
+    }
+
+    // --- Add call to new Performance Browser Dialog ---
+    if (uiState.showPerformanceBrowser) {
+        PerformanceBrowserDialog(
+            uiState = uiState,
+            onEvent = viewModel::onEvent
         )
     }
 }
