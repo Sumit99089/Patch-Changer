@@ -46,10 +46,10 @@ import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.set.patchchanger.domain.model.AppTheme
 import com.set.patchchanger.domain.model.SearchResult
-import com.set.patchchanger.presentation.viewmodel.MainEvent
-import com.set.patchchanger.presentation.viewmodel.MainUiState
+import com.set.patchchanger.presentation.viewmodel.event.MainEvent
+import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 import com.set.patchchanger.presentation.viewmodel.MainViewModel
-import com.set.patchchanger.presentation.viewmodel.UiEvent
+import com.set.patchchanger.presentation.viewmodel.event.UiEvent
 import com.set.patchchanger.ui.theme.PatchChangerTheme
 import kotlinx.coroutines.flow.collectLatest
 

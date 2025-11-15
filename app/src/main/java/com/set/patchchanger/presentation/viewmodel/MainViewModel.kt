@@ -6,12 +6,10 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.set.patchchanger.domain.model.AppSettings
-import com.set.patchchanger.domain.model.AppTheme
 import com.set.patchchanger.domain.model.AudioLibraryItem
 import com.set.patchchanger.domain.model.MidiConnectionState
 import com.set.patchchanger.domain.model.PatchData
 import com.set.patchchanger.domain.model.PatchSlot
-import com.set.patchchanger.domain.model.Performance
 import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.domain.model.SearchResult
 import com.set.patchchanger.domain.repository.AudioLibraryRepository
@@ -27,6 +25,10 @@ import com.set.patchchanger.domain.usecase.NavigatePageUseCase
 import com.set.patchchanger.domain.usecase.SelectPatchUseCase
 import com.set.patchchanger.domain.usecase.SwapSlotsUseCase
 import com.set.patchchanger.domain.usecase.UpdateTransposeUseCase
+import com.set.patchchanger.presentation.viewmodel.event.MainEvent
+import com.set.patchchanger.presentation.viewmodel.event.UiEvent
+import com.set.patchchanger.presentation.viewmodel.state.InternalState
+import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 import com.set.patchchanger.ui.theme.getDefaultColors
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -39,7 +41,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -56,110 +57,6 @@ import javax.inject.Inject
  *
  * @HiltViewModel enables dependency injection in ViewModel
  */
-
-/**
- * UI State for the main screen.
- *
- * Sealed class represents mutually exclusive states.
- * This prevents impossible states (e.g., loading + error simultaneously).
- */
-sealed class MainUiState {
-    object Loading : MainUiState()
-    data class Success(
-        val patchData: PatchData,
-        val settings: AppSettings,
-        val samples: List<SamplePad>,
-        val midiState: MidiConnectionState,
-        val audioLibrary: List<AudioLibraryItem>,
-        // Search State
-        val searchQuery: String = "",
-        val searchResults: List<SearchResult> = emptyList(),
-        // Dialog visibility states
-        val showResetDialog: Boolean = false,
-        val showBankPageNameDialog: Boolean = false,
-        val editingSample: SamplePad? = null,
-        val showAudioLibrary: Boolean = false,
-        val audioLibrarySampleIdTarget: Int = -1,
-        val slotToPaste: PatchSlot? = null,
-        val slotToClear: PatchSlot? = null,
-        val slotToSwap: PatchSlot? = null,
-        val slotToEditColor: PatchSlot? = null,
-        val sampleToEditColor: SamplePad? = null,
-        // Performance Browser State
-        val showPerformanceBrowser: Boolean = false,
-        val slotToEditPerformance: PatchSlot? = null,
-        val performanceCategories: List<String> = emptyList(),
-        val performanceSelectedCategory: String? = null,
-        val performanceBanks: List<GetPerformancesUseCase.PerformanceBank> = emptyList(),
-        val performanceSelectedBankIndex: Int = -1,
-        val performances: List<Performance> = emptyList(),
-        val performanceSearchQuery: String = ""
-    ) : MainUiState()
-
-    data class Error(val message: String) : MainUiState()
-}
-
-/**
- * Events that the UI can trigger.
- *
- * Using sealed class for events ensures exhaustive when() statements.
- */
-sealed class MainEvent {
-    data class SelectSlot(val slotId: Int) : MainEvent()
-    data class UpdateSlot(val slot: PatchSlot) : MainEvent()
-    data class SwapSlots(val slot1Id: Int, val slot2Id: Int) : MainEvent()
-    data class NavigateBank(val direction: Int) : MainEvent()
-    data class NavigatePage(val direction: Int) : MainEvent()
-    data class UpdateTranspose(val delta: Int) : MainEvent()
-    object ResetTranspose : MainEvent()
-    data class UpdateMidiChannel(val channel: Int) : MainEvent()
-    data class UpdateTheme(val theme: AppTheme) : MainEvent()
-    data class UpdateBankName(val index: Int, val name: String) : MainEvent()
-    data class UpdatePageName(val index: Int, val name: String) : MainEvent()
-    object ConnectMidi : MainEvent()
-    object DisconnectMidi : MainEvent()
-
-    // Search Events
-    data class UpdateSearchQuery(val query: String) : MainEvent()
-    data class GoToSearchResult(val result: SearchResult) : MainEvent()
-
-    // Dialog Control
-    data class ShowResetDialog(val show: Boolean) : MainEvent()
-    data class ShowBankPageNameDialog(val show: Boolean) : MainEvent()
-    data class ShowEditSampleDialog(val sample: SamplePad?) : MainEvent()
-    data class ShowPasteConfirmDialog(val slot: PatchSlot?) : MainEvent()
-    data class ShowClearConfirmDialog(val slot: PatchSlot?) : MainEvent()
-    data class ShowSwapDialog(val slot: PatchSlot?) : MainEvent()
-    data class ShowSlotColorDialog(val slot: PatchSlot?) : MainEvent()
-    data class ShowSampleColorDialog(val sample: SamplePad?) : MainEvent()
-    data class ShowAudioLibrary(val show: Boolean, val sampleId: Int = -1) : MainEvent()
-
-    // Actions
-    object ResetData : MainEvent()
-    data class ImportData(val jsonData: String) : MainEvent()
-    data class CopySlot(val slot: PatchSlot) : MainEvent()
-    data class PasteSlot(val targetSlot: PatchSlot) : MainEvent()
-    data class ClearSlot(val slot: PatchSlot) : MainEvent()
-
-    // Sample Events
-    data class UpdateSample(val sample: SamplePad) : MainEvent()
-    data class ClearSampleAudio(val sampleId: Int) : MainEvent()
-    object LoadSampleFile : MainEvent() // Triggers picker
-    data class SetSampleFile(val uri: Uri, val name: String) : MainEvent() // From picker result
-    data class AddFileToLibrary(val uri: Uri, val name: String) : MainEvent()
-    data class DeleteFromAudioLibrary(val item: AudioLibraryItem) : MainEvent()
-    data class SelectSampleFromLibrary(val item: AudioLibraryItem) : MainEvent()
-    data class TriggerSample(val sampleId: Int) : MainEvent()
-
-    // Performance Browser Events
-    data class ShowPerformanceBrowser(val slot: PatchSlot) : MainEvent()
-    object HidePerformanceBrowser : MainEvent()
-    data class SelectPerformanceCategory(val category: String) : MainEvent()
-    data class SelectPerformanceBank(val bankIndex: Int) : MainEvent()
-    data class SelectPerformance(val performance: Performance) : MainEvent()
-    data class UpdatePerformanceSearch(val query: String) : MainEvent()
-}
-
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val patchRepository: PatchRepository,
@@ -174,7 +71,7 @@ class MainViewModel @Inject constructor(
     private val navigatePageUseCase: NavigatePageUseCase,
     private val exportDataUseCase: ExportDataUseCase,
     private val importDataUseCase: ImportDataUseCase,
-    private val getPerformancesUseCase: GetPerformancesUseCase, // Added UseCase
+    private val getPerformancesUseCase: GetPerformancesUseCase,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -274,9 +171,6 @@ class MainViewModel @Inject constructor(
 
     /**
      * Handles UI events.
-     *
-     * viewModelScope is a CoroutineScope tied to ViewModel lifecycle.
-     * When ViewModel is destroyed, all jobs are cancelled.
      */
     fun onEvent(event: MainEvent) {
         viewModelScope.launch {
@@ -626,38 +520,3 @@ class MainViewModel @Inject constructor(
         sampleRepository.cleanup()
     }
 }
-
-/**
- * One-time UI events (like showing snackbars or playing audio).
- */
-sealed class UiEvent {
-    data class ShowMessage(val message: String) : UiEvent()
-    object RequestFilePicker : UiEvent()
-}
-
-/**
- * Internal mutable state for the ViewModel
- */
-data class InternalState(
-    val searchQuery: String = "",
-    val searchResults: List<SearchResult> = emptyList(),
-    val showResetDialog: Boolean = false,
-    val showBankPageNameDialog: Boolean = false,
-    val editingSample: SamplePad? = null,
-    val showAudioLibrary: Boolean = false,
-    val audioLibrarySampleIdTarget: Int = -1,
-    val slotToPaste: PatchSlot? = null,
-    val slotToClear: PatchSlot? = null,
-    val slotToSwap: PatchSlot? = null,
-    val slotToEditColor: PatchSlot? = null,
-    val sampleToEditColor: SamplePad? = null,
-    // Performance Browser State
-    val showPerformanceBrowser: Boolean = false,
-    val slotToEditPerformance: PatchSlot? = null,
-    val performanceCategories: List<String> = emptyList(),
-    val performanceSelectedCategory: String? = null,
-    val performanceBanks: List<GetPerformancesUseCase.PerformanceBank> = emptyList(),
-    val performanceSelectedBankIndex: Int = -1,
-    val performances: List<Performance> = emptyList(),
-    val performanceSearchQuery: String = ""
-)

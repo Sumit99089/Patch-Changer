@@ -18,8 +18,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.toColorInt
-import com.set.patchchanger.presentation.viewmodel.MainEvent
-import com.set.patchchanger.presentation.viewmodel.MainUiState
+import com.set.patchchanger.presentation.viewmodel.event.MainEvent
+import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 
 @Composable
 fun BottomBar(

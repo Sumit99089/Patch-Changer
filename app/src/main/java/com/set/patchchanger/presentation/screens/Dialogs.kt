@@ -66,8 +66,8 @@ import com.set.patchchanger.domain.model.AudioLibraryItem
 import com.set.patchchanger.domain.model.DisplayNameType
 import com.set.patchchanger.domain.model.PatchSlot
 import com.set.patchchanger.domain.model.SamplePad
-import com.set.patchchanger.presentation.viewmodel.MainEvent
-import com.set.patchchanger.presentation.viewmodel.MainUiState
+import com.set.patchchanger.presentation.viewmodel.event.MainEvent
+import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 import com.set.patchchanger.ui.theme.getModxColors
 import androidx.core.graphics.toColorInt
 
