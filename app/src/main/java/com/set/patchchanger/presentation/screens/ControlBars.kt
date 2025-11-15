@@ -79,7 +79,15 @@ fun CompactControlsBar(
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             fontSize = 10.sp,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .clickable { // <-- **** CHANGE IS HERE ****
+                    if (midiState !is MidiConnectionState.Connected) {
+                        onEvent(MainEvent.ConnectMidi)
+                    } else {
+                        onEvent(MainEvent.DisconnectMidi)
+                    }
+                },
             textAlign = TextAlign.Center
         )
 

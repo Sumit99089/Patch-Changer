@@ -155,6 +155,10 @@ class MainViewModel @Inject constructor(
     val events: SharedFlow<UiEvent> = _events.asSharedFlow()
 
     init {
+        // **** CHANGE IS HERE ****
+        // Try to auto-connect on startup
+        onEvent(MainEvent.ConnectMidi)
+
         // Observe changes to the search query
         _internalState
             .onEach {
@@ -296,7 +300,6 @@ class MainViewModel @Inject constructor(
                         showBankPageNameDialog = event.show
                     )
                 }
-
                 is MainEvent.ShowEditSampleDialog -> _internalState.update {
                     it.copy(
                         editingSample = event.sample
