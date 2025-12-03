@@ -47,7 +47,16 @@ class AppMidiManager @Inject constructor(
      */
     private val deviceCallback = object : MidiManager.DeviceCallback() {
         override fun onDeviceAdded(device: MidiDeviceInfo?) {
-            // Could auto-connect here
+            // ***************************************************************
+            // ** FIX #2: Auto-Connect on Device Plug-in **
+            // This is the implementation for auto-connecting when a new
+            // device is plugged in, just like the HTML's `onstatechange`.
+            // We only try to connect if we are not already connected.
+            // ***************************************************************
+            if (_connectionState.value is MidiConnectionState.Disconnected) {
+                // Pass the specific device info to the connect function.
+                connect(device)
+            }
         }
 
         override fun onDeviceRemoved(device: MidiDeviceInfo?) {
@@ -137,11 +146,16 @@ class AppMidiManager @Inject constructor(
      * Disconnects from current device.
      */
     fun disconnect() {
-        inputPort?.close()
-        midiDevice?.close()
-        inputPort = null
-        midiDevice = null
-        _connectionState.value = MidiConnectionState.Disconnected
+        try {
+            inputPort?.close()
+            midiDevice?.close()
+        } catch (e: Exception) {
+            // Ignore errors on close
+        } finally {
+            inputPort = null
+            midiDevice = null
+            _connectionState.value = MidiConnectionState.Disconnected
+        }
     }
 
     /**
@@ -150,8 +164,11 @@ class AppMidiManager @Inject constructor(
      * @param bytes MIDI message bytes
      */
     private fun sendMessage(bytes: ByteArray) {
-        inputPort?.send(bytes, 0, bytes.size) ?: run {
-            _connectionState.value = MidiConnectionState.Error("Not connected")
+        try {
+            inputPort?.send(bytes, 0, bytes.size)
+        } catch (e: Exception) {
+            _connectionState.value = MidiConnectionState.Error("Send Error: ${e.message}")
+            disconnect()
         }
     }
 
@@ -165,6 +182,7 @@ class AppMidiManager @Inject constructor(
      * where n = channel (0-15)
      */
     fun sendProgramChange(channel: Int, msb: Int, lsb: Int, pc: Int) {
+        if (_connectionState.value !is MidiConnectionState.Connected) return
         val ch = (channel - 1).coerceIn(0, 15)
 
         // Bank Select MSB
@@ -200,6 +218,7 @@ class AppMidiManager @Inject constructor(
      * SysEx format: F0 43 10 7F 1C 07 09 00 00 [bank] F7
      */
     fun sendLiveSetBankChange(bankIndex: Int) {
+        if (_connectionState.value !is MidiConnectionState.Connected) return
         val bankNumber = (bankIndex + 1).toByte()
         sendMessage(
             byteArrayOf(
@@ -226,6 +245,7 @@ class AppMidiManager @Inject constructor(
      * value = 64 + transpose (-11 to +11)
      */
     fun sendTranspose(channel: Int, transpose: Int) {
+        if (_connectionState.value !is MidiConnectionState.Connected) return
         val ch = (0x10 + (channel - 1).coerceIn(0, 15)).toByte()
         val value = (64 + transpose.coerceIn(-11, 11)).toByte()
 

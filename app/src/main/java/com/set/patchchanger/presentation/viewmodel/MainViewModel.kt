@@ -155,8 +155,11 @@ class MainViewModel @Inject constructor(
     val events: SharedFlow<UiEvent> = _events.asSharedFlow()
 
     init {
-        // **** CHANGE IS HERE ****
-        // Try to auto-connect on startup
+        // ***************************************************************
+        // ** FIX #1: Auto-Connect on App Startup **
+        // This line, just like `initMidi()` in the HTML, triggers
+        // a connection attempt as soon as the ViewModel is created.
+        // ***************************************************************
         onEvent(MainEvent.ConnectMidi)
 
         // Observe changes to the search query

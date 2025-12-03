@@ -72,7 +72,11 @@ fun CompactControlsBar(
             }
         }
 
-        // MIDI Status
+        // ***************************************************************
+        // ** FIX #3: Manual Connect Trigger **
+        // This `clickable` modifier on the Text component is the
+        // implementation for the manual connect trigger.
+        // ***************************************************************
         Text(
             text = if (midiState is MidiConnectionState.Connected) midiState.deviceName else "Not Connected",
             color = if (midiState is MidiConnectionState.Connected) Color.Green else Color.Red,
@@ -81,11 +85,12 @@ fun CompactControlsBar(
             fontSize = 10.sp,
             modifier = Modifier
                 .weight(1f)
-                .clickable { // <-- **** CHANGE IS HERE ****
+                .clickable { // <-- **** THIS IS THE FIX ****
                     if (midiState !is MidiConnectionState.Connected) {
                         onEvent(MainEvent.ConnectMidi)
                     } else {
-                        onEvent(MainEvent.DisconnectMidi)
+                        // Optional: allow disconnecting
+                        // onEvent(MainEvent.DisconnectMidi)
                     }
                 },
             textAlign = TextAlign.Center
