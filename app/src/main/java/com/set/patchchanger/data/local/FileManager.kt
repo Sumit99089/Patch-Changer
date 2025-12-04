@@ -13,7 +13,7 @@ class FileManager @Inject constructor(
 ) {
     private val folderName = "PatchChanger"
 
-    // Save JSON to Documents/PatchChanger/
+    // Save JSON to Documents/PatchChanger/ via MediaStore (Works on Android 10/11/12+)
     fun saveJsonToDocuments(fileName: String, jsonContent: String): Boolean {
         return try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
@@ -51,23 +51,11 @@ class FileManager @Inject constructor(
         }
     }
 
-    // Get list of JSON files in Documents/PatchChanger/
-    fun getSavedFiles(): List<File> {
-        val targetDir = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-            folderName
-        )
-
-        return if (targetDir.exists() && targetDir.isDirectory) {
-            targetDir.listFiles { _, name -> name.endsWith(".json") }
-                ?.sortedByDescending { it.lastModified() }
-                ?.toList() ?: emptyList()
-        } else {
-            emptyList()
-        }
-    }
-
-    // Read content of a specific file
+    /**
+     * Reads content from a File object.
+     * NOTE: This is only used for files in internal app storage (cache/filesDir).
+     * Do not use for external storage files on Android 11+.
+     */
     fun readFileContent(file: File): String {
         return file.readText()
     }

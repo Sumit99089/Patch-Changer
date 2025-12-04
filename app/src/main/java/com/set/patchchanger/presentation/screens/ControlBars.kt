@@ -51,12 +51,18 @@ fun CompactControlsBar(
     val midiState = state.midiState
 
     Row(
-        Modifier.fillMaxWidth().height(44.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+            .height(56.dp), // Increased container height for better layout
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Transpose
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
             IconButton(onClick = { onEvent(MainEvent.UpdateTranspose(-1)) }, modifier = Modifier.size(36.dp)) {
                 Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
@@ -64,69 +70,83 @@ fun CompactControlsBar(
                 text = if (settings.currentTranspose > 0) "+${settings.currentTranspose}" else "${settings.currentTranspose}",
                 color = if (settings.currentTranspose != 0) Color(0xFFFFA726) else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable { onEvent(MainEvent.ResetTranspose) },
-                fontSize = 12.sp
+                modifier = Modifier
+                    .clickable { onEvent(MainEvent.ResetTranspose) }
+                    .padding(horizontal = 4.dp),
+                fontSize = 14.sp
             )
             IconButton(onClick = { onEvent(MainEvent.UpdateTranspose(1)) }, modifier = Modifier.size(36.dp)) {
                 Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
         }
 
+        // Connection Status
         Text(
             text = if (midiState is MidiConnectionState.Connected) midiState.deviceName else "Not Connected",
             color = if (midiState is MidiConnectionState.Connected) Color.Green else Color.Red,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             modifier = Modifier
                 .weight(1f)
                 .clickable {
                     if (midiState !is MidiConnectionState.Connected) {
                         onEvent(MainEvent.ConnectMidi)
-                    } else {
-                        // Optional: allow disconnecting
-                        // onEvent(MainEvent.DisconnectMidi)
                     }
-                },
-            textAlign = TextAlign.Center
+                }
+                .padding(horizontal = 4.dp),
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
         )
 
         // MIDI Channel Dropdown
         var midiDropdownExpanded by remember { mutableStateOf(false) }
         val midiChannels = (1..16).map { it.toString() }
 
-        ExposedDropdownMenuBox(
-            expanded = midiDropdownExpanded,
-            onExpandedChange = { midiDropdownExpanded = !midiDropdownExpanded },
-            modifier = Modifier.width(60.dp)
+        Box(
+            modifier = Modifier.width(80.dp), // Increased width to fit text and icon
+            contentAlignment = Alignment.CenterEnd
         ) {
-            OutlinedTextField(
-                value = settings.currentMidiChannel.toString(),
-                onValueChange = {},
-                readOnly = true,
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = midiDropdownExpanded) },
-                // FIX: Use the new overload for menuAnchor
-                modifier = Modifier
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
-                    .height(40.dp),
-                textStyle = MaterialTheme.typography.labelSmall,
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedContainerColor = Color.Transparent
-                )
-            )
-            ExposedDropdownMenu(expanded = midiDropdownExpanded, onDismissRequest = { midiDropdownExpanded = false }) {
-                midiChannels.forEach { channel ->
-                    DropdownMenuItem(
-                        text = { Text(channel) },
-                        onClick = {
-                            onEvent(MainEvent.UpdateMidiChannel(channel.toInt()))
-                            midiDropdownExpanded = false
-                        }
+            ExposedDropdownMenuBox(
+                expanded = midiDropdownExpanded,
+                onExpandedChange = { midiDropdownExpanded = !midiDropdownExpanded }
+            ) {
+                OutlinedTextField(
+                    value = settings.currentMidiChannel.toString(),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Ch", fontSize = 9.sp) }, // Added Label
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = midiDropdownExpanded) },
+                    modifier = Modifier
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
+                        .fillMaxWidth(),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.Center),
+                    singleLine = true,
+                    // FIX: Explicit colors to ensure visibility
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedContainerColor = Color.Transparent
                     )
+                )
+                ExposedDropdownMenu(
+                    expanded = midiDropdownExpanded,
+                    onDismissRequest = { midiDropdownExpanded = false }
+                ) {
+                    midiChannels.forEach { channel ->
+                        DropdownMenuItem(
+                            text = { Text(channel) },
+                            onClick = {
+                                onEvent(MainEvent.UpdateMidiChannel(channel.toInt()))
+                                midiDropdownExpanded = false
+                            },
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                        )
+                    }
                 }
             }
         }
@@ -141,7 +161,10 @@ fun CompactSelectorBar(
     isEditMode: Boolean
 ) {
     Row(
-        Modifier.fillMaxWidth().height(44.dp),
+        Modifier
+            .fillMaxWidth()
+            .height(50.dp) // Slightly taller for better touch
+            .padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -161,13 +184,25 @@ fun CompactSelectorBar(
             onClick = { onEvent(MainEvent.ShowBankPageNameDialog(true)) },
             modifier = Modifier.weight(1f)
         )
-        Button(
+
+        // Edit Mode Toggle Button
+        FilledTonalButton(
             onClick = onToggleEdit,
-            colors = ButtonDefaults.buttonColors(containerColor = if (isEditMode) Color(0xFFFFA726) else MaterialTheme.colorScheme.secondary),
-            modifier = Modifier.size(60.dp, 40.dp),
-            contentPadding = PaddingValues(2.dp)
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = if (isEditMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = if (isEditMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
+            ),
+            modifier = Modifier
+                .width(60.dp)
+                .height(40.dp),
+            contentPadding = PaddingValues(0.dp),
+            shape = MaterialTheme.shapes.small
         ) {
-            Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.width(16.dp))
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = "Edit",
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -181,28 +216,55 @@ fun CompactSelector(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onPrev, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.ArrowUpward, null, modifier = Modifier.width(16.dp))
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(
+            onClick = onPrev,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(Icons.Default.ArrowUpward, null, modifier = Modifier.size(20.dp))
         }
+
         Card(
-            Modifier.weight(1f).height(40.dp).clickable { onClick() },
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            modifier = Modifier
+                .weight(1f)
+                .height(40.dp)
+                .clickable { onClick() },
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = MaterialTheme.shapes.small
         ) {
             Column(
-                Modifier.fillMaxSize().padding(2.dp),
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(label, style = MaterialTheme.typography.labelSmall, fontSize = 9.sp)
                 Text(
-                    value, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 10.sp
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 8.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
-        IconButton(onClick = onNext, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.ArrowDownward, null, modifier = Modifier.width(16.dp))
+
+        IconButton(
+            onClick = onNext,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(Icons.Default.ArrowDownward, null, modifier = Modifier.size(20.dp))
         }
     }
 }

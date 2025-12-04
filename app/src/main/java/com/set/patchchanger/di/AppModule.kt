@@ -5,11 +5,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.set.patchchanger.data.local.db.AppDatabase
-import com.set.patchchanger.data.local.dao.BankDao
 import com.set.patchchanger.data.local.entities.BankEntity
-import com.set.patchchanger.data.local.dao.PageDao
 import com.set.patchchanger.data.local.entities.PageEntity
-import com.set.patchchanger.data.local.dao.PatchSlotDao
 import com.set.patchchanger.data.local.entities.PatchSlotEntity
 import com.set.patchchanger.data.repository.MidiRepositoryImpl
 import com.set.patchchanger.data.repository.PatchRepositoryImpl
@@ -39,17 +36,12 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    // CHANGED: Removed @Inject constructor. The class is now created manually.
+    // FIX: Inject Provider<AppDatabase> to break circular dependency
     internal class AppDatabaseCallback(
-        private val patchSlotDao: Provider<PatchSlotDao>,
-        private val bankDao: Provider<BankDao>,
-        private val pageDao: Provider<PageDao>,
+        private val databaseProvider: Provider<AppDatabase>,
         private val scope: CoroutineScope
     ) : RoomDatabase.Callback() {
 
-        /**
-         * This is called ONLY when the database is created for the first time.
-         */
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
             scope.launch(Dispatchers.IO) {
@@ -57,14 +49,20 @@ object AppModule {
             }
         }
 
-        suspend fun populateDatabase() {
+        private suspend fun populateDatabase() {
+            // Lazy retrieval of database and DAOs prevents cycle during build()
+            val database = databaseProvider.get()
+            val patchSlotDao = database.patchSlotDao()
+            val bankDao = database.bankDao()
+            val pageDao = database.pageDao()
+
             val defaultSlots = generateDefaultSlots().map { it.toEntity() }
             val defaultBanks = (0..7).map { BankEntity(it, "User ${it + 1}") }
             val defaultPages = (0..15).map { PageEntity(it, "Page ${it + 1}") }
 
-            bankDao.get().insertBanks(defaultBanks)
-            pageDao.get().insertPages(defaultPages)
-            patchSlotDao.get().insertSlots(defaultSlots)
+            bankDao.insertBanks(defaultBanks)
+            pageDao.insertPages(defaultPages)
+            patchSlotDao.insertSlots(defaultSlots)
         }
 
         private fun generateDefaultSlots(): List<PatchSlot> {
@@ -105,13 +103,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    // CHANGED: Reverted the function signature.
-    // It now takes the dependencies for the callback, not the callback itself.
     fun provideAppDatabase(
         @ApplicationContext context: Context,
-        patchSlotDao: Provider<PatchSlotDao>,
-        bankDao: Provider<BankDao>,
-        pageDao: Provider<PageDao>,
+        // We inject the provider of the DB into the DB builder itself
+        provider: Provider<AppDatabase>,
         scope: CoroutineScope
     ): AppDatabase {
         return Room.databaseBuilder(
@@ -120,9 +115,7 @@ object AppModule {
             "live_patch_controller_db"
         )
             .fallbackToDestructiveMigration(false)
-            // CHANGED: We now create the callback instance manually right here.
-            // This avoids the public/internal visibility conflict.
-            .addCallback(AppDatabaseCallback(patchSlotDao, bankDao, pageDao, scope))
+            .addCallback(AppDatabaseCallback(provider, scope))
             .build()
     }
 
@@ -145,8 +138,6 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAudioLibraryDao(db: AppDatabase) = db.audioLibraryDao()
-
-    // ... (rest of the file is unchanged) ...
 
     @Provides
     @Singleton

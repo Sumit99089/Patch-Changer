@@ -2,7 +2,10 @@ package com.set.patchchanger.presentation.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -12,6 +15,8 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.toColorInt
+import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 
@@ -40,48 +46,17 @@ fun BottomBar(
     ) {
         // Sample Pads
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             samples.take(4).forEach { sample ->
-                val color = try {
-                    Color(sample.color.toColorInt())
-                } catch (e: Exception) {
-                    MaterialTheme.colorScheme.primary
-                }
-
-                // Using Surface with combinedClickable to support Long Press
-                Surface(
-                    color = color,
-                    shape = RoundedCornerShape(6.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 1.dp)
-                        .height(40.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .combinedClickable(
-                            onClick = {
-                                if (isEditMode) onEvent(MainEvent.ShowEditSampleDialog(sample))
-                                else onEvent(MainEvent.TriggerSample(sample.id))
-                            },
-                            onLongClick = {
-                                onEvent(MainEvent.ShowEditSampleDialog(sample))
-                            }
-                        )
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize().padding(2.dp)
-                    ) {
-                        Text(
-                            text = sample.name,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = Color.White,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
+                SampleButton(
+                    sample = sample,
+                    isEditMode = isEditMode,
+                    onEvent = onEvent
+                )
             }
         }
 
@@ -92,7 +67,9 @@ fun BottomBar(
 
         // Bottom Controls
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -122,6 +99,66 @@ fun BottomBar(
                     Icon(Icons.Default.PowerSettingsNew, "Power", modifier = Modifier.width(18.dp))
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun RowScope.SampleButton(
+    sample: SamplePad,
+    isEditMode: Boolean,
+    onEvent: (MainEvent) -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val baseColor = try {
+        Color(sample.color.toColorInt())
+    } catch (e: Exception) {
+        MaterialTheme.colorScheme.primary
+    }
+
+    // Visual feedback logic
+    val containerColor = if (isPressed) Color.White else baseColor
+    val contentColor = if (isPressed) baseColor else Color.White
+    val borderColor = if (isPressed) baseColor else Color.Transparent
+
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(6.dp),
+        modifier = Modifier
+            .weight(1f)
+            .padding(horizontal = 1.dp)
+            .height(40.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .border(2.dp, borderColor, RoundedCornerShape(6.dp))
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null, // Disable default ripple to use our custom color swap
+                onClick = {
+                    if (isEditMode) onEvent(MainEvent.ShowEditSampleDialog(sample))
+                    else onEvent(MainEvent.TriggerSample(sample.id))
+                },
+                onLongClick = {
+                    onEvent(MainEvent.ShowEditSampleDialog(sample))
+                }
+            )
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(2.dp)
+        ) {
+            Text(
+                text = sample.name,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = contentColor,
+                fontSize = 10.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
         }
     }
 }
