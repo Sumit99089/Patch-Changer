@@ -1,7 +1,8 @@
 package com.set.patchchanger.presentation.screens
 
-
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -13,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -21,6 +23,7 @@ import androidx.core.graphics.toColorInt
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BottomBar(
     uiState: MainUiState,
@@ -46,17 +49,38 @@ fun BottomBar(
                 } catch (e: Exception) {
                     MaterialTheme.colorScheme.primary
                 }
-                Button(
-                    onClick = {
-                        if (isEditMode) onEvent(MainEvent.ShowEditSampleDialog(sample))
-                        else onEvent(MainEvent.TriggerSample(sample.id))
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = color),
-                    modifier = Modifier.weight(1f).padding(horizontal = 1.dp).height(40.dp),
+
+                // Using Surface with combinedClickable to support Long Press
+                Surface(
+                    color = color,
                     shape = RoundedCornerShape(6.dp),
-                    contentPadding = PaddingValues(2.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 1.dp)
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .combinedClickable(
+                            onClick = {
+                                if (isEditMode) onEvent(MainEvent.ShowEditSampleDialog(sample))
+                                else onEvent(MainEvent.TriggerSample(sample.id))
+                            },
+                            onLongClick = {
+                                onEvent(MainEvent.ShowEditSampleDialog(sample))
+                            }
+                        )
                 ) {
-                    Text(sample.name, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color.White, fontSize = 10.sp)
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize().padding(2.dp)
+                    ) {
+                        Text(
+                            text = sample.name,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = Color.White,
+                            fontSize = 10.sp
+                        )
+                    }
                 }
             }
         }
@@ -73,10 +97,10 @@ fun BottomBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { /* Save Data Logic */ }, modifier = Modifier.size(36.dp)) {
+                IconButton(onClick = { onEvent(MainEvent.RequestExportData) }, modifier = Modifier.size(36.dp)) {
                     Icon(Icons.Default.Save, "Save", modifier = Modifier.width(18.dp))
                 }
-                IconButton(onClick = { /* Load Data Logic */ }, modifier = Modifier.size(36.dp)) {
+                IconButton(onClick = { onEvent(MainEvent.RequestImportData) }, modifier = Modifier.size(36.dp)) {
                     Icon(Icons.Default.FolderOpen, "Load", modifier = Modifier.width(18.dp))
                 }
                 TextButton(
@@ -89,9 +113,11 @@ fun BottomBar(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Placeholder for Settings
                 IconButton(onClick = { /* TODO: Show Settings Dialog */ }, modifier = Modifier.size(36.dp)) {
                     Icon(Icons.Default.Settings, "Settings", modifier = Modifier.width(18.dp))
                 }
+                // Placeholder for Power
                 IconButton(onClick = { /* TODO: Show Power/Quit Dialog */ }, modifier = Modifier.size(36.dp)) {
                     Icon(Icons.Default.PowerSettingsNew, "Power", modifier = Modifier.width(18.dp))
                 }

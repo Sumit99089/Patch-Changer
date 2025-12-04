@@ -5,5 +5,7 @@ package com.set.patchchanger.presentation.viewmodel.event
  */
 sealed class UiEvent {
     data class ShowMessage(val message: String) : UiEvent()
-    object RequestFilePicker : UiEvent()
+    object RequestFilePicker : UiEvent() // For Audio Samples
+    object RequestSaveFile : UiEvent() // For JSON Export
+    object RequestLoadFile : UiEvent() // For JSON Import
 }

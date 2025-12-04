@@ -10,8 +10,6 @@ import com.set.patchchanger.domain.model.SearchResult
 
 /**
  * Events that the UI can trigger.
- *
- * Using sealed class for events ensures exhaustive when() statements.
  */
 sealed class MainEvent {
     data class SelectSlot(val slotId: Int) : MainEvent()
@@ -45,7 +43,12 @@ sealed class MainEvent {
 
     // Actions
     object ResetData : MainEvent()
-    data class ImportData(val jsonData: String) : MainEvent()
+    object RequestExportData : MainEvent() // User clicked Save button
+    object RequestImportData : MainEvent() // User clicked Load button
+    data class PerformExport(val uri: Uri) : MainEvent() // System picked a file to write to
+    data class PerformImport(val uri: Uri) : MainEvent() // System picked a file to read from
+
+    data class ImportData(val jsonData: String) : MainEvent() // Internal logic
     data class CopySlot(val slot: PatchSlot) : MainEvent()
     data class PasteSlot(val targetSlot: PatchSlot) : MainEvent()
     data class ClearSlot(val slot: PatchSlot) : MainEvent()

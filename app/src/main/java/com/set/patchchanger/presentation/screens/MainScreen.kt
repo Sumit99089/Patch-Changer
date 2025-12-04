@@ -76,12 +76,23 @@ fun MainScreenContent(
     val snackbarHostState = remember { SnackbarHostState() }
     var isEditMode by remember { mutableStateOf(false) }
 
-    // Launchers
+    // Launchers for File Operations
     val audioPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { viewModel.onEvent(MainEvent.SetSampleFile(it, viewModel.getFileName(it))) }
     }
+
     val libraryPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { viewModel.onEvent(MainEvent.AddFileToLibrary(it, viewModel.getFileName(it))) }
+    }
+
+    // Save File Launcher (Export JSON)
+    val saveFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+        uri?.let { viewModel.onEvent(MainEvent.PerformExport(it)) }
+    }
+
+    // Load File Launcher (Import JSON)
+    val loadFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let { viewModel.onEvent(MainEvent.PerformImport(it)) }
     }
 
     LaunchedEffect(Unit) {
@@ -89,6 +100,8 @@ fun MainScreenContent(
             when (event) {
                 is UiEvent.ShowMessage -> snackbarHostState.showSnackbar(event.message)
                 is UiEvent.RequestFilePicker -> audioPickerLauncher.launch("audio/*")
+                is UiEvent.RequestSaveFile -> saveFileLauncher.launch("modx-live-data.json")
+                is UiEvent.RequestLoadFile -> loadFileLauncher.launch(arrayOf("application/json"))
             }
         }
     }
@@ -114,7 +127,7 @@ fun MainScreenContent(
                                 value = uiState.searchQuery,
                                 onValueChange = { viewModel.onEvent(MainEvent.UpdateSearchQuery(it)) },
                                 label = { Text("Search all patches...") },
-                                modifier = Modifier.fillMaxWidth(), // <-- REMOVED .height(48.dp)
+                                modifier = Modifier.fillMaxWidth(),
                                 textStyle = MaterialTheme.typography.bodySmall,
                                 singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
@@ -166,7 +179,6 @@ fun MainScreenContent(
 
 
                     // --- Dialogs (Calling Logic) ---
-                    // This function now contains all the dialogs from the original file.
                     HandleDialogs(uiState, viewModel, libraryPickerLauncher)
                 }
 
@@ -182,16 +194,14 @@ fun SearchResultsOverlay(
     uiState: MainUiState.Success,
     onEvent: (MainEvent) -> Unit
 ) {
-    // Show results if query is not blank and we have results
     if (uiState.searchQuery.isNotBlank() && uiState.searchResults.isNotEmpty()) {
         Card(
             modifier = Modifier
                 .padding(horizontal = 4.dp)
-                // Position it below the search bar (48dp + 4dp spacer)
                 .padding(top = (48 + 4).dp)
                 .fillMaxWidth()
-                .heightIn(max = 300.dp) // Limit height
-                .zIndex(10f), // Ensure it's on top
+                .heightIn(max = 300.dp)
+                .zIndex(10f),
             elevation = CardDefaults.cardElevation(8.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
@@ -256,22 +266,8 @@ fun HandleDialogs(
         BankPageNameDialog(
             state = uiState,
             onDismiss = { viewModel.onEvent(MainEvent.ShowBankPageNameDialog(false)) },
-            onSaveBank = {
-                viewModel.onEvent(
-                    MainEvent.UpdateBankName(
-                        uiState.settings.currentBankIndex,
-                        it
-                    )
-                )
-            },
-            onSavePage = {
-                viewModel.onEvent(
-                    MainEvent.UpdatePageName(
-                        uiState.settings.currentPageIndex,
-                        it
-                    )
-                )
-            }
+            onSaveBank = { viewModel.onEvent(MainEvent.UpdateBankName(uiState.settings.currentBankIndex, it)) },
+            onSavePage = { viewModel.onEvent(MainEvent.UpdatePageName(uiState.settings.currentPageIndex, it)) }
         )
     }
 
@@ -281,14 +277,7 @@ fun HandleDialogs(
             onDismiss = { viewModel.onEvent(MainEvent.ShowEditSampleDialog(null)) },
             onSave = { viewModel.onEvent(MainEvent.UpdateSample(it)) },
             onLoadFile = { viewModel.onEvent(MainEvent.LoadSampleFile) },
-            onSelectFromLibrary = {
-                viewModel.onEvent(
-                    MainEvent.ShowAudioLibrary(
-                        true,
-                        sample.id
-                    )
-                )
-            },
+            onSelectFromLibrary = { viewModel.onEvent(MainEvent.ShowAudioLibrary(true, sample.id)) },
             onClearAudio = { viewModel.onEvent(MainEvent.ClearSampleAudio(sample.id)) },
             onEditColor = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(sample)) }
         )
@@ -327,9 +316,7 @@ fun HandleDialogs(
             currentPageSlots = uiState.patchData.banks[uiState.settings.currentBankIndex].pages[uiState.settings.currentPageIndex].slots,
             sourceSlot = slot,
             onDismiss = { viewModel.onEvent(MainEvent.ShowSwapDialog(null)) },
-            onSelectSlot = { targetSlot ->
-                viewModel.onEvent(MainEvent.SwapSlots(slot.id, targetSlot.id))
-            }
+            onSelectSlot = { targetSlot -> viewModel.onEvent(MainEvent.SwapSlots(slot.id, targetSlot.id)) }
         )
     }
 
@@ -343,7 +330,7 @@ fun HandleDialogs(
             onSwap = { viewModel.onEvent(MainEvent.ShowSwapDialog(slot)) },
             onClear = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(slot)) },
             samples = uiState.samples,
-            onShowPerformanceBrowser = { viewModel.onEvent(MainEvent.ShowPerformanceBrowser(slot)) } // Added
+            onShowPerformanceBrowser = { viewModel.onEvent(MainEvent.ShowPerformanceBrowser(slot)) }
         )
     }
 
@@ -357,7 +344,6 @@ fun HandleDialogs(
         )
     }
 
-    // --- Add call to new Performance Browser Dialog ---
     if (uiState.showPerformanceBrowser) {
         PerformanceBrowserDialog(
             uiState = uiState,
