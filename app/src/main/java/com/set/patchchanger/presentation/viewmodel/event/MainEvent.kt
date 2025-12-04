@@ -7,6 +7,7 @@ import com.set.patchchanger.domain.model.PatchSlot
 import com.set.patchchanger.domain.model.Performance
 import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.domain.model.SearchResult
+import java.io.File
 
 /**
  * Events that the UI can trigger.
@@ -41,12 +42,17 @@ sealed class MainEvent {
     data class ShowSampleColorDialog(val sample: SamplePad?) : MainEvent()
     data class ShowAudioLibrary(val show: Boolean, val sampleId: Int = -1) : MainEvent()
 
+    // File Dialog Control
+    data class ShowLoadFileDialog(val show: Boolean) : MainEvent()
+
     // Actions
     object ResetData : MainEvent()
     object RequestExportData : MainEvent() // User clicked Save button
     object RequestImportData : MainEvent() // User clicked Load button
-    data class PerformExport(val uri: Uri) : MainEvent() // System picked a file to write to
-    data class PerformImport(val uri: Uri) : MainEvent() // System picked a file to read from
+
+    data class PerformExport(val uri: Uri) : MainEvent() // Legacy System Picker
+    data class PerformImport(val uri: Uri) : MainEvent() // Legacy System Picker
+    data class LoadSelectedFile(val file: File) : MainEvent() // New Custom File Loader
 
     data class ImportData(val jsonData: String) : MainEvent() // Internal logic
     data class CopySlot(val slot: PatchSlot) : MainEvent()

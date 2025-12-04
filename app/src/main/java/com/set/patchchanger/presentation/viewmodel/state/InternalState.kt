@@ -5,6 +5,7 @@ import com.set.patchchanger.domain.model.Performance
 import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.domain.model.SearchResult
 import com.set.patchchanger.domain.usecase.GetPerformancesUseCase
+import java.io.File
 
 /**
  * Internal mutable state for the ViewModel
@@ -22,6 +23,11 @@ data class InternalState(
     val slotToSwap: PatchSlot? = null,
     val slotToEditColor: PatchSlot? = null,
     val sampleToEditColor: SamplePad? = null,
+
+    // File Load Dialog
+    val showLoadFileDialog: Boolean = false,
+    val availableFiles: List<File> = emptyList(),
+
     // Performance Browser State
     val showPerformanceBrowser: Boolean = false,
     val slotToEditPerformance: PatchSlot? = null,

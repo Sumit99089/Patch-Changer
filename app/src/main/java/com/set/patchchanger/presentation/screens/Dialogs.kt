@@ -39,6 +39,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -70,6 +71,8 @@ import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 import com.set.patchchanger.ui.theme.getModxColors
 import androidx.core.graphics.toColorInt
+import java.io.File
+import java.util.Date
 
 /**
  * Generic confirmation dialog
@@ -432,7 +435,6 @@ fun EditSlotDialog(
     var assignedSample by remember(slot.assignedSample) { mutableIntStateOf(slot.assignedSample) }
     var colorHex by remember(slot.color) { mutableStateOf(slot.color) }
     var showColorPicker by remember { mutableStateOf(false) }
-    // var showPerfBrowser by remember { mutableStateOf(false) } // Removed
 
     Dialog(onDismissRequest = onDismiss) {
         Card(shape = RoundedCornerShape(8.dp)) {
@@ -606,8 +608,6 @@ fun EditSlotDialog(
             onColorSelected = { colorHex = it }
         )
     }
-
-    // Removed the placeholder performance browser
 }
 
 /**
@@ -641,7 +641,6 @@ fun SwapDialog(
                         val bgColor = try {
                             Color(slot.color.toColorInt())
                         } catch (e: Exception) {
-                            Toast.makeText(LocalContext.current ,"Some Error Occurred: ${e.message}", Toast.LENGTH_LONG).show( )
                             MaterialTheme.colorScheme.surfaceVariant
                         }
                         Card(
@@ -842,6 +841,70 @@ fun PerformanceBrowserDialog(
                 // --- Cancel Button ---
                 TextButton(
                     onClick = { onEvent(MainEvent.HidePerformanceBrowser) },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * File Loading Dialog
+ */
+@Composable
+fun LoadFileDialog(
+    files: List<File>,
+    onDismiss: () -> Unit,
+    onFileSelected: (File) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.7f)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Select Backup File", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Location: Documents/PatchChanger/",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Spacer(Modifier.height(16.dp))
+
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+                ) {
+                    if (files.isEmpty()) {
+                        item {
+                            Text("No files found", modifier = Modifier.padding(16.dp))
+                        }
+                    }
+                    items(files) { file ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onFileSelected(file) }
+                                .padding(12.dp)
+                        ) {
+                            Text(file.name, fontWeight = FontWeight.Bold)
+                            Text(
+                                "Modified: ${Date(file.lastModified())}",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                        HorizontalDivider()
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+                TextButton(
+                    onClick = onDismiss,
                     modifier = Modifier.align(Alignment.End)
                 ) {
                     Text("Cancel")

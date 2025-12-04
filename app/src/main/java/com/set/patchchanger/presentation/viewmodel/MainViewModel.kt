@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.set.patchchanger.data.local.FileManager
 import com.set.patchchanger.domain.model.AppSettings
 import com.set.patchchanger.domain.model.AudioLibraryItem
 import com.set.patchchanger.domain.model.MidiConnectionState
@@ -48,6 +49,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -65,7 +69,8 @@ class MainViewModel @Inject constructor(
     private val exportDataUseCase: ExportDataUseCase,
     private val importDataUseCase: ImportDataUseCase,
     private val getPerformancesUseCase: GetPerformancesUseCase,
-    @ApplicationContext private val context: Context
+    private val fileManager: FileManager,
+    @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _internalState = MutableStateFlow(InternalState())
@@ -120,7 +125,10 @@ class MainViewModel @Inject constructor(
             performanceBanks = internal.performanceBanks,
             performanceSelectedBankIndex = internal.performanceSelectedBankIndex,
             performances = internal.performances,
-            performanceSearchQuery = internal.performanceSearchQuery
+            performanceSearchQuery = internal.performanceSearchQuery,
+            // File Dialog
+            showLoadFileDialog = internal.showLoadFileDialog,
+            availableFiles = internal.availableFiles
         )
     }.stateIn(
         scope = viewModelScope,
@@ -218,16 +226,49 @@ class MainViewModel @Inject constructor(
                     _events.emit(UiEvent.ShowMessage("Data reset to defaults"))
                 }
 
-                // --- Import/Export Logic ---
+                // --- Import/Export Logic Modified ---
                 is MainEvent.RequestExportData -> {
-                    _events.emit(UiEvent.RequestSaveFile)
+                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                    val filename = "modx_backup_$timestamp.json"
+                    val jsonData = exportDataUseCase()
+                    val success = fileManager.saveJsonToDocuments(filename, jsonData)
+                    if (success) {
+                        _events.emit(UiEvent.ShowMessage("Saved to Documents/PatchChanger/$filename"))
+                    } else {
+                        _events.emit(UiEvent.ShowMessage("Failed to save. Check permissions."))
+                    }
                 }
 
                 is MainEvent.RequestImportData -> {
-                    _events.emit(UiEvent.RequestLoadFile)
+                    // Fetch files from Documents/PatchChanger
+                    val files = fileManager.getSavedFiles()
+                    if (files.isEmpty()) {
+                        _events.emit(UiEvent.ShowMessage("No backup files found in Documents/PatchChanger"))
+                    } else {
+                        _internalState.update { it.copy(showLoadFileDialog = true, availableFiles = files) }
+                    }
+                }
+
+                is MainEvent.ShowLoadFileDialog -> {
+                    _internalState.update { it.copy(showLoadFileDialog = event.show) }
+                }
+
+                is MainEvent.LoadSelectedFile -> {
+                    try {
+                        val json = fileManager.readFileContent(event.file)
+                        val success = importDataUseCase(json)
+                        _events.emit(
+                            if (success) UiEvent.ShowMessage("Loaded ${event.file.name}")
+                            else UiEvent.ShowMessage("Failed to parse data")
+                        )
+                        _internalState.update { it.copy(showLoadFileDialog = false) }
+                    } catch(e: Exception) {
+                        _events.emit(UiEvent.ShowMessage("Error reading file: ${e.message}"))
+                    }
                 }
 
                 is MainEvent.PerformExport -> {
+                    // Legacy intent-based export if needed
                     val jsonData = exportDataUseCase()
                     try {
                         withContext(Dispatchers.IO) {
@@ -242,6 +283,7 @@ class MainViewModel @Inject constructor(
                 }
 
                 is MainEvent.PerformImport -> {
+                    // Legacy intent-based import
                     try {
                         val jsonData = withContext(Dispatchers.IO) {
                             context.contentResolver.openInputStream(event.uri)?.use { input ->
@@ -261,7 +303,6 @@ class MainViewModel @Inject constructor(
                 }
 
                 is MainEvent.ImportData -> {
-                    // Legacy event kept if needed, but logic moved to PerformImport
                     val success = importDataUseCase(event.jsonData)
                     _events.emit(
                         if (success) UiEvent.ShowMessage("Data imported successfully")

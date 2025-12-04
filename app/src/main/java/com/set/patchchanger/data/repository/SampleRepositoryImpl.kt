@@ -26,7 +26,7 @@ import javax.inject.Singleton
 class SampleRepositoryImpl @Inject constructor(
     private val sampleDao: SampleDao,
     private val audioLibraryDao: AudioLibraryDao,
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : SampleRepository, AudioLibraryRepository {
 
     // SoundPool for low-latency playback

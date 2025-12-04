@@ -80,7 +80,7 @@ fun CompactControlsBar(
             fontSize = 10.sp,
             modifier = Modifier
                 .weight(1f)
-                .clickable { // <-- **** THIS IS THE FIX ****
+                .clickable {
                     if (midiState !is MidiConnectionState.Connected) {
                         onEvent(MainEvent.ConnectMidi)
                     } else {
@@ -105,7 +105,10 @@ fun CompactControlsBar(
                 onValueChange = {},
                 readOnly = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = midiDropdownExpanded) },
-                modifier = Modifier.menuAnchor().height(40.dp),
+                // FIX: Use the new overload for menuAnchor
+                modifier = Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
+                    .height(40.dp),
                 textStyle = MaterialTheme.typography.labelSmall,
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(

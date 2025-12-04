@@ -85,12 +85,12 @@ fun MainScreenContent(
         uri?.let { viewModel.onEvent(MainEvent.AddFileToLibrary(it, viewModel.getFileName(it))) }
     }
 
-    // Save File Launcher (Export JSON)
+    // Save File Launcher (Export JSON) - LEGACY FALLBACK
     val saveFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
         uri?.let { viewModel.onEvent(MainEvent.PerformExport(it)) }
     }
 
-    // Load File Launcher (Import JSON)
+    // Load File Launcher (Import JSON) - LEGACY FALLBACK
     val loadFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         uri?.let { viewModel.onEvent(MainEvent.PerformImport(it)) }
     }
@@ -348,6 +348,15 @@ fun HandleDialogs(
         PerformanceBrowserDialog(
             uiState = uiState,
             onEvent = viewModel::onEvent
+        )
+    }
+
+    // NEW: Load File Dialog
+    if (uiState.showLoadFileDialog) {
+        LoadFileDialog(
+            files = uiState.availableFiles,
+            onDismiss = { viewModel.onEvent(MainEvent.ShowLoadFileDialog(false)) },
+            onFileSelected = { file -> viewModel.onEvent(MainEvent.LoadSelectedFile(file)) }
         )
     }
 }
