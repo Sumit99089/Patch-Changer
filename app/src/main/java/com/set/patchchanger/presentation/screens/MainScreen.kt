@@ -41,7 +41,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.set.patchchanger.domain.model.AppTheme
@@ -72,7 +71,6 @@ fun MainScreenContent(
     viewModel: MainViewModel,
     uiState: MainUiState
 ) {
-    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var isEditMode by remember { mutableStateOf(false) }
 
@@ -85,12 +83,12 @@ fun MainScreenContent(
         uri?.let { viewModel.onEvent(MainEvent.AddFileToLibrary(it, viewModel.getFileName(it))) }
     }
 
-    // Save File Launcher (Export JSON) - LEGACY FALLBACK
+    // Save File Launcher (Export JSON)
     val saveFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
         uri?.let { viewModel.onEvent(MainEvent.PerformExport(it)) }
     }
 
-    // Load File Launcher (Import JSON) - LEGACY FALLBACK
+    // Load File Launcher (Import JSON) - System Picker
     val loadFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         uri?.let { viewModel.onEvent(MainEvent.PerformImport(it)) }
     }
@@ -176,7 +174,6 @@ fun MainScreenContent(
                             onEvent = viewModel::onEvent
                         )
                     }
-
 
                     // --- Dialogs (Calling Logic) ---
                     HandleDialogs(uiState, viewModel, libraryPickerLauncher)
@@ -348,15 +345,6 @@ fun HandleDialogs(
         PerformanceBrowserDialog(
             uiState = uiState,
             onEvent = viewModel::onEvent
-        )
-    }
-
-    // NEW: Load File Dialog
-    if (uiState.showLoadFileDialog) {
-        LoadFileDialog(
-            files = uiState.availableFiles,
-            onDismiss = { viewModel.onEvent(MainEvent.ShowLoadFileDialog(false)) },
-            onFileSelected = { file -> viewModel.onEvent(MainEvent.LoadSelectedFile(file)) }
         )
     }
 }

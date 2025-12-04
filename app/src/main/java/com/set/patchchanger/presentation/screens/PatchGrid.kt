@@ -1,5 +1,10 @@
 package com.set.patchchanger.presentation.screens
 
+import androidx.compose.animation.animateColor
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -32,9 +37,6 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.core.graphics.toColorInt
 
-/**
- * Internal state holder for drag-and-drop operations within the grid.
- */
 private data class DragState(
     val isDragging: Boolean = false,
     val draggedSlot: PatchSlot? = null,
@@ -59,28 +61,24 @@ fun PatchGrid(
     var dragState by remember { mutableStateOf(DragState()) }
     val slotBounds = remember { mutableMapOf<Int, Rect>() }
     val density = LocalDensity.current
-
-    // Store the grid's own offset relative to the root
     var gridOffset by remember { mutableStateOf(Offset.Zero) }
 
     if (slots != null) {
         Box(
             modifier = modifier
                 .fillMaxSize()
-                // Get the grid's position relative to the root
                 .onGloballyPositioned {
                     gridOffset = it.localToRoot(Offset.Zero)
                 }
         ) {
-            // The 4x4 Grid
             Column(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp) // Slightly increased spacing
             ) {
                 repeat(4) { rowIndex ->
                     Row(
                         modifier = Modifier.fillMaxWidth().weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         repeat(4) { colIndex ->
                             val slotIndex = rowIndex * 4 + colIndex
@@ -127,7 +125,6 @@ fun PatchGrid(
                 }
             }
 
-            // Drag Ghost Overlay
             if (dragState.isDragging && dragState.draggedSlot != null) {
                 val slot = dragState.draggedSlot!!
                 val bounds = slotBounds[slot.id]
@@ -139,11 +136,6 @@ fun PatchGrid(
                         modifier = Modifier
                             .zIndex(10f)
                             .offset {
-                                // FIX:
-                                // bounds.topLeft is the slot's absolute screen position
-                                // gridOffset is the grid's absolute screen position
-                                // (bounds.topLeft - gridOffset) is the slot's position *relative to the grid*
-                                // Then we add the dragOffset
                                 val relativeTopLeft = bounds.topLeft - gridOffset
                                 IntOffset(
                                     (relativeTopLeft.x + dragState.dragOffset.x).roundToInt(),
@@ -193,11 +185,6 @@ fun RowScope.PatchSlotItem(
             .onGloballyPositioned { layoutCoordinates ->
                 onGloballyPositioned(Rect(layoutCoordinates.localToRoot(Offset.Zero), layoutCoordinates.size.toSize()))
             }
-            // --- FIX ---
-            // We key pointerInput not just on `isEditMode`, but also on the `slot` itself.
-            // When the slot data changes (like after a swap), this key will be different,
-            // forcing the pointerInput block to re-run and capture the new `onDragStart`
-            // lambda, which holds a reference to the new (e.g., yellow) slot.
             .pointerInput(isEditMode, slot) {
                 if (isEditMode) {
                     detectDragGesturesAfterLongPress(
@@ -229,36 +216,57 @@ fun PatchSlotCard(
         MaterialTheme.colorScheme.surfaceVariant
     }
 
+    // Animation for selected state
+    val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
+    val selectedBorderColor by infiniteTransition.animateColor(
+        initialValue = bgColor,
+        targetValue = Color.White,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "BorderPulse"
+    )
+
     val borderColor = when {
         isDropTarget -> Color.Yellow
-        slot.selected && !isEditMode -> Color(0xFFFFA726)
+        slot.selected && !isEditMode -> selectedBorderColor
         isEditMode -> Color.White.copy(alpha = 0.3f)
         else -> Color.Transparent
     }
+
     val borderWidth = when {
-        isDropTarget -> 3.dp
-        slot.selected || isEditMode -> 2.dp
+        isDropTarget -> 4.dp
+        slot.selected && !isEditMode -> 3.dp // Thicker selection border
+        isEditMode -> 1.dp
         else -> 0.dp
     }
 
     Card(
-        modifier = modifier.graphicsLayer { alpha = if (isBeingDragged) 0f else 1f },
+        modifier = modifier.graphicsLayer {
+            alpha = if (isBeingDragged) 0f else 1f
+            // Slight scale effect if selected
+            val scale = if (slot.selected && !isEditMode) 1.02f else 1f
+            scaleX = scale
+            scaleY = scale
+        },
         colors = CardDefaults.cardColors(containerColor = bgColor),
         border = BorderStroke(borderWidth, borderColor),
-        shape = RoundedCornerShape(6.dp)
+        shape = RoundedCornerShape(8.dp)
     ) {
         Box(
-            Modifier.fillMaxSize().padding(2.dp),
+            Modifier.fillMaxSize().padding(4.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = slot.getDisplayName(),
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
                 textAlign = TextAlign.Center,
-                fontSize = 11.sp,
-                modifier = Modifier.padding(2.dp)
+                fontSize = 14.sp,
+                maxLines = 3,
+                lineHeight = 16.sp
             )
         }
     }

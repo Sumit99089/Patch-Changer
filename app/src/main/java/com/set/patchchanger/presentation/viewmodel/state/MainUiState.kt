@@ -9,7 +9,6 @@ import com.set.patchchanger.domain.model.Performance
 import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.domain.model.SearchResult
 import com.set.patchchanger.domain.usecase.GetPerformancesUseCase
-import java.io.File
 
 /**
  * UI State for the main screen.
@@ -44,10 +43,7 @@ sealed class MainUiState {
         val performanceBanks: List<GetPerformancesUseCase.PerformanceBank> = emptyList(),
         val performanceSelectedBankIndex: Int = -1,
         val performances: List<Performance> = emptyList(),
-        val performanceSearchQuery: String = "",
-        // File Dialog Control (These were missing)
-        val showLoadFileDialog: Boolean = false,
-        val availableFiles: List<File> = emptyList()
+        val performanceSearchQuery: String = ""
     ) : MainUiState()
 
     data class Error(val message: String) : MainUiState()

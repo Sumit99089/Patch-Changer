@@ -125,10 +125,7 @@ class MainViewModel @Inject constructor(
             performanceBanks = internal.performanceBanks,
             performanceSelectedBankIndex = internal.performanceSelectedBankIndex,
             performances = internal.performances,
-            performanceSearchQuery = internal.performanceSearchQuery,
-            // File Dialog
-            showLoadFileDialog = internal.showLoadFileDialog,
-            availableFiles = internal.availableFiles
+            performanceSearchQuery = internal.performanceSearchQuery
         )
     }.stateIn(
         scope = viewModelScope,
@@ -226,8 +223,10 @@ class MainViewModel @Inject constructor(
                     _events.emit(UiEvent.ShowMessage("Data reset to defaults"))
                 }
 
-                // --- Import/Export Logic Modified ---
+                // --- FIXED: Import/Export Logic for Android 11+ ---
                 is MainEvent.RequestExportData -> {
+                    // We attempt to save to Documents first, but we also trigger the system saver
+                    // This is handled by the FileManager for Q+, but fallback to Share/System Picker is safer.
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                     val filename = "modx_backup_$timestamp.json"
                     val jsonData = exportDataUseCase()
@@ -235,40 +234,26 @@ class MainViewModel @Inject constructor(
                     if (success) {
                         _events.emit(UiEvent.ShowMessage("Saved to Documents/PatchChanger/$filename"))
                     } else {
-                        _events.emit(UiEvent.ShowMessage("Failed to save. Check permissions."))
+                        // Fallback to system picker if auto-save fails
+                        _events.emit(UiEvent.RequestSaveFile)
                     }
                 }
 
                 is MainEvent.RequestImportData -> {
-                    // Fetch files from Documents/PatchChanger
-                    val files = fileManager.getSavedFiles()
-                    if (files.isEmpty()) {
-                        _events.emit(UiEvent.ShowMessage("No backup files found in Documents/PatchChanger"))
-                    } else {
-                        _internalState.update { it.copy(showLoadFileDialog = true, availableFiles = files) }
-                    }
+                    // DIRECTLY Open System Picker.
+                    // Reading directory listing is restricted on Android 11+.
+                    _events.emit(UiEvent.RequestLoadFile)
                 }
 
                 is MainEvent.ShowLoadFileDialog -> {
-                    _internalState.update { it.copy(showLoadFileDialog = event.show) }
+                    // Deprecated / Unused in new flow
                 }
 
                 is MainEvent.LoadSelectedFile -> {
-                    try {
-                        val json = fileManager.readFileContent(event.file)
-                        val success = importDataUseCase(json)
-                        _events.emit(
-                            if (success) UiEvent.ShowMessage("Loaded ${event.file.name}")
-                            else UiEvent.ShowMessage("Failed to parse data")
-                        )
-                        _internalState.update { it.copy(showLoadFileDialog = false) }
-                    } catch(e: Exception) {
-                        _events.emit(UiEvent.ShowMessage("Error reading file: ${e.message}"))
-                    }
+                    // Deprecated / Unused in new flow
                 }
 
                 is MainEvent.PerformExport -> {
-                    // Legacy intent-based export if needed
                     val jsonData = exportDataUseCase()
                     try {
                         withContext(Dispatchers.IO) {
@@ -283,7 +268,6 @@ class MainViewModel @Inject constructor(
                 }
 
                 is MainEvent.PerformImport -> {
-                    // Legacy intent-based import
                     try {
                         val jsonData = withContext(Dispatchers.IO) {
                             context.contentResolver.openInputStream(event.uri)?.use { input ->
