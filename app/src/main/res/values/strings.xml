@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Patch Changer</string>
+    <string name="user">USER</string>
 </resources>

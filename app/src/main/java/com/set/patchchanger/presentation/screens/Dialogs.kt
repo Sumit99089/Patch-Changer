@@ -63,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.graphics.toColorInt
 import com.set.patchchanger.domain.model.AudioLibraryItem
 import com.set.patchchanger.domain.model.DisplayNameType
 import com.set.patchchanger.domain.model.PatchSlot
@@ -70,7 +71,6 @@ import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 import com.set.patchchanger.ui.theme.getModxColors
-import androidx.core.graphics.toColorInt
 import java.io.File
 import java.util.Date
 
@@ -184,7 +184,8 @@ fun EditSampleDialog(
     val buttonColor = try {
         Color(sample.color.toColorInt())
     } catch (e: Exception) {
-        Toast.makeText(LocalContext.current ,"Some Error Occurred: ${e.message}", Toast.LENGTH_LONG).show( )
+        Toast.makeText(LocalContext.current, "Some Error Occurred: ${e.message}", Toast.LENGTH_LONG)
+            .show()
         MaterialTheme.colorScheme.primary
     }
 
@@ -488,7 +489,10 @@ fun EditSlotDialog(
                 // Assign Performance
                 Text("Assigned Performance", fontWeight = FontWeight.Bold)
                 // Updated this section
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     OutlinedTextField(
                         value = slot.performanceName,
                         onValueChange = {},
@@ -555,15 +559,29 @@ fun EditSlotDialog(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(onClick = { showColorPicker = true }, modifier = Modifier.weight(1f)) { Text("Color") }
-                    Button(onClick = { onCopy(); onDismiss() }, modifier = Modifier.weight(1f)) { Text("Copy") }
+                    Button(
+                        onClick = { showColorPicker = true },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Color") }
+                    Button(
+                        onClick = { onCopy(); onDismiss() },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Copy") }
                 }
                 Row(
-                    Modifier.fillMaxWidth().padding(top = 8.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(onClick = { onPaste(); onDismiss() }, modifier = Modifier.weight(1f)) { Text("Paste") }
-                    Button(onClick = { onSwap(); onDismiss() }, modifier = Modifier.weight(1f)) { Text("Swap") }
+                    Button(
+                        onClick = { onPaste(); onDismiss() },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Paste") }
+                    Button(
+                        onClick = { onSwap(); onDismiss() },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Swap") }
                 }
                 Button(
                     onClick = { onClear(); onDismiss() },
@@ -732,7 +750,13 @@ fun PerformanceBrowserDialog(
                     ) {
                         uiState.performanceCategories.forEach { category ->
                             DropdownMenuItem(
-                                text = { Text(category, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                text = {
+                                    Text(
+                                        category,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                },
                                 onClick = {
                                     onEvent(MainEvent.SelectPerformanceCategory(category))
                                     categoryExpanded = false
@@ -746,7 +770,10 @@ fun PerformanceBrowserDialog(
 
                 // --- Bank Dropdown ---
                 var bankExpanded by remember { mutableStateOf(false) }
-                val selectedBankName = if (uiState.performanceSelectedBankIndex == -1) "Select Bank..." else uiState.performanceBanks.getOrNull(uiState.performanceSelectedBankIndex)?.name
+                val selectedBankName =
+                    if (uiState.performanceSelectedBankIndex == -1) "Select Bank..." else uiState.performanceBanks.getOrNull(
+                        uiState.performanceSelectedBankIndex
+                    )?.name
                 ExposedDropdownMenuBox(
                     expanded = bankExpanded,
                     onExpandedChange = { bankExpanded = !bankExpanded }
@@ -771,7 +798,13 @@ fun PerformanceBrowserDialog(
                     ) {
                         uiState.performanceBanks.forEachIndexed { index, bank ->
                             DropdownMenuItem(
-                                text = { Text(bank.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                text = {
+                                    Text(
+                                        bank.name,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                },
                                 onClick = {
                                     onEvent(MainEvent.SelectPerformanceBank(index))
                                     bankExpanded = false

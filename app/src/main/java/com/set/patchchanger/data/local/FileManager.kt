@@ -20,7 +20,10 @@ class FileManager @Inject constructor(
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                     put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOCUMENTS}/$folderName")
+                    put(
+                        MediaStore.MediaColumns.RELATIVE_PATH,
+                        "${Environment.DIRECTORY_DOCUMENTS}/$folderName"
+                    )
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
 
@@ -38,7 +41,8 @@ class FileManager @Inject constructor(
                 } ?: false
             } else {
                 // Legacy approach for Android 9 and below
-                val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+                val docsDir =
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
                 val appDir = File(docsDir, folderName)
                 if (!appDir.exists()) appDir.mkdirs()
                 val file = File(appDir, fileName)

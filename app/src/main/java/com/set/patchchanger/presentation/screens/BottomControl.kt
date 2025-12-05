@@ -6,14 +6,31 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -74,10 +91,16 @@ fun BottomBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { onEvent(MainEvent.RequestExportData) }, modifier = Modifier.size(36.dp)) {
+                IconButton(
+                    onClick = { onEvent(MainEvent.RequestExportData) },
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(Icons.Default.Save, "Save", modifier = Modifier.width(18.dp))
                 }
-                IconButton(onClick = { onEvent(MainEvent.RequestImportData) }, modifier = Modifier.size(36.dp)) {
+                IconButton(
+                    onClick = { onEvent(MainEvent.RequestImportData) },
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(Icons.Default.FolderOpen, "Load", modifier = Modifier.width(18.dp))
                 }
                 TextButton(
@@ -91,11 +114,17 @@ fun BottomBar(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // Placeholder for Settings
-                IconButton(onClick = { /* TODO: Show Settings Dialog */ }, modifier = Modifier.size(36.dp)) {
+                IconButton(
+                    onClick = { /* TODO: Show Settings Dialog */ },
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(Icons.Default.Settings, "Settings", modifier = Modifier.width(18.dp))
                 }
                 // Placeholder for Power
-                IconButton(onClick = { /* TODO: Show Power/Quit Dialog */ }, modifier = Modifier.size(36.dp)) {
+                IconButton(
+                    onClick = { /* TODO: Show Power/Quit Dialog */ },
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(Icons.Default.PowerSettingsNew, "Power", modifier = Modifier.width(18.dp))
                 }
             }

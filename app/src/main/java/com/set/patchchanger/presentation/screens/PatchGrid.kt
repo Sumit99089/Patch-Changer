@@ -8,13 +8,30 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -31,11 +48,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.zIndex
+import androidx.core.graphics.toColorInt
 import com.set.patchchanger.domain.model.PatchData
 import com.set.patchchanger.domain.model.PatchSlot
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-import androidx.core.graphics.toColorInt
 
 private data class DragState(
     val isDragging: Boolean = false,
@@ -77,7 +94,9 @@ fun PatchGrid(
             ) {
                 repeat(4) { rowIndex ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         repeat(4) { colIndex ->
@@ -89,33 +108,53 @@ fun PatchGrid(
                                     isEditMode = isEditMode,
                                     isBeingDragged = dragState.draggedSlot?.id == slot.id,
                                     isDropTarget = dragState.dropTargetSlot?.id == slot.id,
-                                    onGloballyPositioned = { bounds -> slotBounds[slot.id] = bounds },
+                                    onGloballyPositioned = { bounds ->
+                                        slotBounds[slot.id] = bounds
+                                    },
                                     onDragStart = {
-                                        dragState = dragState.copy(isDragging = true, draggedSlot = slot, dragOffset = Offset.Zero)
+                                        dragState = dragState.copy(
+                                            isDragging = true,
+                                            draggedSlot = slot,
+                                            dragOffset = Offset.Zero
+                                        )
                                     },
                                     onDragEnd = {
                                         dragState.dropTargetSlot?.let { target ->
                                             dragState.draggedSlot?.let { source ->
-                                                if (source.id != target.id) onSlotSwap(source.id, target.id)
+                                                if (source.id != target.id) onSlotSwap(
+                                                    source.id,
+                                                    target.id
+                                                )
                                             }
                                         }
                                         dragState = DragState()
                                     },
                                     onDrag = { offsetChange ->
                                         if (dragState.isDragging) {
-                                            dragState = dragState.copy(dragOffset = dragState.dragOffset + offsetChange)
-                                            val dragCenter = slotBounds[dragState.draggedSlot?.id]?.center?.plus(dragState.dragOffset)
+                                            dragState =
+                                                dragState.copy(dragOffset = dragState.dragOffset + offsetChange)
+                                            val dragCenter =
+                                                slotBounds[dragState.draggedSlot?.id]?.center?.plus(
+                                                    dragState.dragOffset
+                                                )
                                             if (dragCenter != null) {
-                                                val targetEntry = slotBounds.entries.find { (id, bounds) ->
-                                                    id != dragState.draggedSlot?.id && bounds.contains(dragCenter)
-                                                }
+                                                val targetEntry =
+                                                    slotBounds.entries.find { (id, bounds) ->
+                                                        id != dragState.draggedSlot?.id && bounds.contains(
+                                                            dragCenter
+                                                        )
+                                                    }
                                                 dragState = dragState.copy(
                                                     dropTargetSlot = targetEntry?.let { entry -> slots.find { s -> s.id == entry.key } }
                                                 )
                                             }
                                         }
                                     },
-                                    onClick = { if (isEditMode) onSlotEdit(slot) else onSlotClick(slot) }
+                                    onClick = {
+                                        if (isEditMode) onSlotEdit(slot) else onSlotClick(
+                                            slot
+                                        )
+                                    }
                                 )
                             } else {
                                 Spacer(Modifier.weight(1f))
@@ -183,7 +222,12 @@ fun RowScope.PatchSlotItem(
             .weight(1f)
             .fillMaxHeight()
             .onGloballyPositioned { layoutCoordinates ->
-                onGloballyPositioned(Rect(layoutCoordinates.localToRoot(Offset.Zero), layoutCoordinates.size.toSize()))
+                onGloballyPositioned(
+                    Rect(
+                        layoutCoordinates.localToRoot(Offset.Zero),
+                        layoutCoordinates.size.toSize()
+                    )
+                )
             }
             .pointerInput(isEditMode, slot) {
                 if (isEditMode) {
@@ -255,7 +299,9 @@ fun PatchSlotCard(
         shape = RoundedCornerShape(8.dp)
     ) {
         Box(
-            Modifier.fillMaxSize().padding(4.dp),
+            Modifier
+                .fillMaxSize()
+                .padding(4.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(

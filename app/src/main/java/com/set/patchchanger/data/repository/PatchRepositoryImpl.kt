@@ -4,10 +4,10 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.set.patchchanger.data.local.dao.BankDao
-import com.set.patchchanger.data.local.entities.BankEntity
 import com.set.patchchanger.data.local.dao.PageDao
-import com.set.patchchanger.data.local.entities.PageEntity
 import com.set.patchchanger.data.local.dao.PatchSlotDao
+import com.set.patchchanger.data.local.entities.BankEntity
+import com.set.patchchanger.data.local.entities.PageEntity
 import com.set.patchchanger.data.local.entities.PatchSlotEntity
 import com.set.patchchanger.domain.model.Bank
 import com.set.patchchanger.domain.model.DisplayNameType

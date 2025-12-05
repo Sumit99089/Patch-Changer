@@ -227,7 +227,8 @@ class MainViewModel @Inject constructor(
                 is MainEvent.RequestExportData -> {
                     // We attempt to save to Documents first, but we also trigger the system saver
                     // This is handled by the FileManager for Q+, but fallback to Share/System Picker is safer.
-                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                    val timestamp =
+                        SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                     val filename = "modx_backup_$timestamp.json"
                     val jsonData = exportDataUseCase()
                     val success = fileManager.saveJsonToDocuments(filename, jsonData)
@@ -330,6 +331,7 @@ class MainViewModel @Inject constructor(
                 is MainEvent.ShowBankPageNameDialog -> _internalState.update {
                     it.copy(showBankPageNameDialog = event.show)
                 }
+
                 is MainEvent.ShowEditSampleDialog -> _internalState.update {
                     it.copy(editingSample = event.sample)
                 }
