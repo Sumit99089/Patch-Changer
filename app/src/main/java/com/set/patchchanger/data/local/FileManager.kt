@@ -2,10 +2,16 @@ package com.set.patchchanger.data.local
 
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.BufferedReader
 import java.io.File
+import java.io.InputStreamReader
 import javax.inject.Inject
 
 class FileManager @Inject constructor(
@@ -52,11 +58,55 @@ class FileManager @Inject constructor(
     }
 
     /**
-     * Reads content from a File object.
-     * NOTE: This is only used for files in internal app storage (cache/filesDir).
-     * Do not use for external storage files on Android 11+.
+     * Reads content from a File object (Internal Storage).
      */
     fun readFileContent(file: File): String {
         return file.readText()
+    }
+
+    /**
+     * Reads text content from a URI (External Storage / Content Provider).
+     */
+    suspend fun readContentFromUri(uri: Uri): String? = withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                BufferedReader(InputStreamReader(input)).readText()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Writes text content to a URI.
+     */
+    suspend fun writeContentToUri(uri: Uri, content: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.openOutputStream(uri)?.use { output ->
+                output.write(content.toByteArray())
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    /**
+     * Gets file name from URI.
+     */
+    fun getFileName(uri: Uri): String {
+        var name = "unknown"
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex != -1) {
+                    name = it.getString(nameIndex)
+                }
+            }
+        }
+        return name
     }
 }

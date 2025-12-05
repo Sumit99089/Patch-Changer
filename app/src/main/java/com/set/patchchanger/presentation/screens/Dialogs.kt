@@ -74,38 +74,6 @@ import androidx.core.graphics.toColorInt
 import java.io.File
 import java.util.Date
 
-/**
- * Generic confirmation dialog
- */
-@Composable
-fun ConfirmationDialog(
-    title: String,
-    text: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = title) },
-        text = { Text(text = text) },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onConfirm()
-                    onDismiss()
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) {
-                Text("OK")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
 
 /**
  * Dialog to edit Bank and Page names

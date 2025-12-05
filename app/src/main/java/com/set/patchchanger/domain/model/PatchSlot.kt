@@ -1,5 +1,6 @@
 package com.set.patchchanger.domain.model
 
+import android.graphics.Color
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
 
@@ -18,6 +19,7 @@ data class PatchSlot(
     val displayNameType: DisplayNameType,
     val assignedSample: Int
 ) : Parcelable {
+
     fun getDisplayName(): String {
         return when (displayNameType) {
             DisplayNameType.PERFORMANCE -> performanceName
@@ -25,9 +27,18 @@ data class PatchSlot(
         }
     }
 
-    fun getSlotNumber(): Int = (id % 16) + 1
-    fun getPageIndex(): Int = (id / 16) % 16
-    fun getBankIndex(): Int = id / 256
+    /**
+     * Helper to safely parse color string to Integer.
+     * Used by UI to avoid try-catch blocks in composition loops.
+     */
+    fun getColorInt(): Int {
+        return try {
+            Color.parseColor(color)
+        } catch (e: Exception) {
+            // Default Dark Gray if parse fails
+            0xFF333333.toInt()
+        }
+    }
 
     fun copyDataFrom(source: PatchSlot): PatchSlot {
         return this.copy(
@@ -55,7 +66,7 @@ data class PatchSlot(
                 description = "Slot $slotNum",
                 selected = false,
                 color = defaultColor,
-                msb = 62,
+                msb = 63, // Default MSB for Montage/MODX single
                 lsb = pageNum,
                 pc = slotNum - 1,
                 volume = 100,

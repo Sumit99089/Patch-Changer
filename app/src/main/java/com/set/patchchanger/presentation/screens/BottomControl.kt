@@ -1,4 +1,4 @@
-package com.set.patchchanger.presentation.screens
+package com.set.patchchanger.presentation.main.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background

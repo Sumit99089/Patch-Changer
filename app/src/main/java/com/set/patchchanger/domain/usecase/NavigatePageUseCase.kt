@@ -1,6 +1,7 @@
 package com.set.patchchanger.domain.usecase
 
 import com.set.patchchanger.domain.repository.SettingsRepository
+import com.set.patchchanger.domain.util.Constants
 import javax.inject.Inject
 
 class NavigatePageUseCase @Inject constructor(
@@ -8,10 +9,7 @@ class NavigatePageUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(direction: Int) {
         val settings = settingsRepository.getSettings()
-        val totalPages = 16
-
-        val newPageIndex = (settings.currentPageIndex + direction + totalPages) % totalPages
-
+        val newPageIndex = (settings.currentPageIndex + direction + Constants.PAGE_COUNT) % Constants.PAGE_COUNT
         settingsRepository.updatePageIndex(newPageIndex)
     }
 }

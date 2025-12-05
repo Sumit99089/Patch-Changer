@@ -1,4 +1,4 @@
-package com.set.patchchanger.presentation.screens
+package com.set.patchchanger.presentation.main.components
 
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.RepeatMode
@@ -33,9 +33,9 @@ import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.zIndex
 import com.set.patchchanger.domain.model.PatchData
 import com.set.patchchanger.domain.model.PatchSlot
+import com.set.patchchanger.domain.util.Constants
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-import androidx.core.graphics.toColorInt
 
 private data class DragState(
     val isDragging: Boolean = false,
@@ -73,15 +73,15 @@ fun PatchGrid(
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(4.dp) // Slightly increased spacing
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                repeat(4) { rowIndex ->
+                repeat(Constants.ROW_COUNT) { rowIndex ->
                     Row(
                         modifier = Modifier.fillMaxWidth().weight(1f),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        repeat(4) { colIndex ->
-                            val slotIndex = rowIndex * 4 + colIndex
+                        repeat(Constants.COL_COUNT) { colIndex ->
+                            val slotIndex = rowIndex * Constants.COL_COUNT + colIndex
                             if (slotIndex < slots.size) {
                                 val slot = slots[slotIndex]
                                 PatchSlotItem(
@@ -210,11 +210,9 @@ fun PatchSlotCard(
     isDropTarget: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val bgColor = try {
-        Color(slot.color.toColorInt())
-    } catch (e: Exception) {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
+    // Optimization: Use the helper we added to PatchSlot.
+    // No try-catch needed here anymore.
+    val bgColor = Color(slot.getColorInt())
 
     // Animation for selected state
     val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
@@ -237,7 +235,7 @@ fun PatchSlotCard(
 
     val borderWidth = when {
         isDropTarget -> 4.dp
-        slot.selected && !isEditMode -> 3.dp // Thicker selection border
+        slot.selected && !isEditMode -> 3.dp
         isEditMode -> 1.dp
         else -> 0.dp
     }

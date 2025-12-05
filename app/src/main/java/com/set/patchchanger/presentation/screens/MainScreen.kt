@@ -2,53 +2,40 @@ package com.set.patchchanger.presentation.screens
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.set.patchchanger.domain.model.AppTheme
-import com.set.patchchanger.domain.model.SearchResult
-import com.set.patchchanger.presentation.viewmodel.event.MainEvent
-import com.set.patchchanger.presentation.viewmodel.state.MainUiState
+import com.set.patchchanger.presentation.common.components.ConfirmationDialog
+import com.set.patchchanger.presentation.main.components.BottomBar
+import com.set.patchchanger.presentation.main.components.CompactControlsBar
+import com.set.patchchanger.presentation.main.components.CompactSelectorBar
+import com.set.patchchanger.presentation.main.components.PatchGrid
+import com.set.patchchanger.presentation.main.components.TopBar
+import com.set.patchchanger.presentation.main.dialogs.AudioLibraryDialog
+import com.set.patchchanger.presentation.main.dialogs.BankPageNameDialog
+import com.set.patchchanger.presentation.main.dialogs.ColorPickerDialog
+import com.set.patchchanger.presentation.main.dialogs.EditSampleDialog
+import com.set.patchchanger.presentation.main.dialogs.EditSlotDialog
+import com.set.patchchanger.presentation.main.dialogs.PerformanceBrowserDialog
+import com.set.patchchanger.presentation.main.dialogs.SwapDialog
 import com.set.patchchanger.presentation.viewmodel.MainViewModel
+import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.event.UiEvent
+import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 import com.set.patchchanger.ui.theme.PatchChangerTheme
 import kotlinx.coroutines.flow.collectLatest
 
@@ -83,12 +70,10 @@ fun MainScreenContent(
         uri?.let { viewModel.onEvent(MainEvent.AddFileToLibrary(it, viewModel.getFileName(it))) }
     }
 
-    // Save File Launcher (Export JSON)
     val saveFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
         uri?.let { viewModel.onEvent(MainEvent.PerformExport(it)) }
     }
 
-    // Load File Launcher (Import JSON) - System Picker
     val loadFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         uri?.let { viewModel.onEvent(MainEvent.PerformImport(it)) }
     }
@@ -117,7 +102,6 @@ fun MainScreenContent(
         ) {
             when (uiState) {
                 is MainUiState.Success -> {
-                    // Box to allow search results to overlay
                     Box(Modifier.fillMaxSize()) {
                         Column(Modifier.fillMaxSize().padding(4.dp)) {
                             // Search Bar
@@ -139,21 +123,16 @@ fun MainScreenContent(
                             )
 
                             Spacer(Modifier.height(4.dp))
-
                             CompactControlsBar(state = uiState, onEvent = viewModel::onEvent)
-
                             Spacer(Modifier.height(4.dp))
-
                             CompactSelectorBar(
                                 state = uiState,
                                 onEvent = viewModel::onEvent,
                                 onToggleEdit = { isEditMode = !isEditMode },
                                 isEditMode = isEditMode
                             )
-
                             Spacer(Modifier.height(4.dp))
 
-                            // Patch Grid
                             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                                 PatchGrid(
                                     patchData = uiState.patchData,
@@ -167,18 +146,10 @@ fun MainScreenContent(
                                 )
                             }
                         }
-
-                        // --- Search Results Overlay ---
-                        SearchResultsOverlay(
-                            uiState = uiState,
-                            onEvent = viewModel::onEvent
-                        )
+                        SearchResultsOverlay(uiState = uiState, onEvent = viewModel::onEvent)
                     }
-
-                    // --- Dialogs (Calling Logic) ---
                     HandleDialogs(uiState, viewModel, libraryPickerLauncher)
                 }
-
                 is MainUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 is MainUiState.Error -> Text("Error: ${uiState.message}", color = Color.Red, modifier = Modifier.align(Alignment.Center))
             }
@@ -187,27 +158,21 @@ fun MainScreenContent(
 }
 
 @Composable
-fun SearchResultsOverlay(
-    uiState: MainUiState.Success,
-    onEvent: (MainEvent) -> Unit
-) {
+fun SearchResultsOverlay(uiState: MainUiState.Success, onEvent: (MainEvent) -> Unit) {
     if (uiState.searchQuery.isNotBlank() && uiState.searchResults.isNotEmpty()) {
         Card(
-            modifier = Modifier
-                .padding(horizontal = 4.dp)
-                .padding(top = (48 + 4).dp)
-                .fillMaxWidth()
-                .heightIn(max = 300.dp)
-                .zIndex(10f),
+            modifier = Modifier.padding(horizontal = 4.dp).padding(top = 52.dp).fillMaxWidth().heightIn(max = 300.dp).zIndex(10f),
             elevation = CardDefaults.cardElevation(8.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             LazyColumn {
                 items(uiState.searchResults) { result ->
-                    SearchResultItem(
-                        result = result,
-                        onClick = { onEvent(MainEvent.GoToSearchResult(result)) }
-                    )
+                    Row(modifier = Modifier.fillMaxWidth().clickable { onEvent(MainEvent.GoToSearchResult(result)) }.padding(16.dp)) {
+                        Column {
+                            Text(result.slot.getDisplayName(), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                            Text("Bank: ${result.bankName} | Page: ${result.pageName}", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
             }
         }
@@ -215,40 +180,10 @@ fun SearchResultsOverlay(
 }
 
 @Composable
-fun SearchResultItem(
-    result: SearchResult,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = result.slot.getDisplayName(),
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = "Bank: ${result.bankName}  |  Page: ${result.pageName}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-        }
-    }
-}
-
-
-@Composable
 fun HandleDialogs(
     uiState: MainUiState.Success,
     viewModel: MainViewModel,
-    libraryPickerLauncher: androidx.activity.result.ActivityResultLauncher<String>
+    libraryPickerLauncher: ActivityResultLauncher<String>
 ) {
     if (uiState.showResetDialog) {
         ConfirmationDialog(
@@ -258,7 +193,6 @@ fun HandleDialogs(
             onDismiss = { viewModel.onEvent(MainEvent.ShowResetDialog(false)) }
         )
     }
-
     if (uiState.showBankPageNameDialog) {
         BankPageNameDialog(
             state = uiState,
@@ -267,7 +201,6 @@ fun HandleDialogs(
             onSavePage = { viewModel.onEvent(MainEvent.UpdatePageName(uiState.settings.currentPageIndex, it)) }
         )
     }
-
     uiState.editingSample?.let { sample ->
         EditSampleDialog(
             sample = sample,
@@ -279,7 +212,6 @@ fun HandleDialogs(
             onEditColor = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(sample)) }
         )
     }
-
     if (uiState.showAudioLibrary) {
         AudioLibraryDialog(
             library = uiState.audioLibrary,
@@ -289,7 +221,6 @@ fun HandleDialogs(
             onAddFile = { libraryPickerLauncher.launch("audio/*") }
         )
     }
-
     uiState.slotToPaste?.let { slot ->
         ConfirmationDialog(
             title = "Confirm Paste",
@@ -298,7 +229,6 @@ fun HandleDialogs(
             onDismiss = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(null)) }
         )
     }
-
     uiState.slotToClear?.let { slot ->
         ConfirmationDialog(
             title = "Clear Slot",
@@ -307,7 +237,6 @@ fun HandleDialogs(
             onDismiss = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(null)) }
         )
     }
-
     uiState.slotToSwap?.let { slot ->
         SwapDialog(
             currentPageSlots = uiState.patchData.banks[uiState.settings.currentBankIndex].pages[uiState.settings.currentPageIndex].slots,
@@ -316,21 +245,19 @@ fun HandleDialogs(
             onSelectSlot = { targetSlot -> viewModel.onEvent(MainEvent.SwapSlots(slot.id, targetSlot.id)) }
         )
     }
-
     uiState.slotToEditColor?.let { slot ->
         EditSlotDialog(
             slot = slot,
+            samples = uiState.samples,
             onDismiss = { viewModel.onEvent(MainEvent.ShowSlotColorDialog(null)) },
             onSave = { viewModel.onEvent(MainEvent.UpdateSlot(it)) },
             onCopy = { viewModel.onEvent(MainEvent.CopySlot(slot)) },
             onPaste = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(slot)) },
             onSwap = { viewModel.onEvent(MainEvent.ShowSwapDialog(slot)) },
             onClear = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(slot)) },
-            samples = uiState.samples,
             onShowPerformanceBrowser = { viewModel.onEvent(MainEvent.ShowPerformanceBrowser(slot)) }
         )
     }
-
     uiState.sampleToEditColor?.let { sample ->
         ColorPickerDialog(
             onDismiss = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(null)) },
@@ -340,11 +267,7 @@ fun HandleDialogs(
             }
         )
     }
-
     if (uiState.showPerformanceBrowser) {
-        PerformanceBrowserDialog(
-            uiState = uiState,
-            onEvent = viewModel::onEvent
-        )
+        PerformanceBrowserDialog(uiState = uiState, onEvent = viewModel::onEvent)
     }
 }

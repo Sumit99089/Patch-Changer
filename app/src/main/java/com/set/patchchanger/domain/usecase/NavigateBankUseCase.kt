@@ -2,6 +2,7 @@ package com.set.patchchanger.domain.usecase
 
 import com.set.patchchanger.domain.repository.MidiRepository
 import com.set.patchchanger.domain.repository.SettingsRepository
+import com.set.patchchanger.domain.util.Constants
 import javax.inject.Inject
 
 class NavigateBankUseCase @Inject constructor(
@@ -10,12 +11,13 @@ class NavigateBankUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(direction: Int) {
         val settings = settingsRepository.getSettings()
-        val totalBanks = 8
 
-        val newBankIndex = (settings.currentBankIndex + direction + totalBanks) % totalBanks
+        // Use Constants for scalability
+        val newBankIndex = (settings.currentBankIndex + direction + Constants.BANK_COUNT) % Constants.BANK_COUNT
 
         settingsRepository.updateBankIndex(newBankIndex)
-        settingsRepository.updatePageIndex(0)
+        // Reset page to 0 when switching banks (optional UX choice, but keeps navigation clean)
+        settingsRepository.updatePageIndex(Constants.DEFAULT_PAGE_INDEX)
 
         midiRepository.sendLiveSetBankChange(newBankIndex)
     }

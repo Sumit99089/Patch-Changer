@@ -29,7 +29,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        viewModel.cleanup()
     }
 }
 
@@ -38,6 +37,6 @@ class MainActivity : ComponentActivity() {
 fun Preview() {
     PatchChangerTheme {
         // Preview won't have a real ViewModel, so functionality will be limited
-        MainScreen()
+        // MainScreen() // Requires VM, skip for now in preview
     }
 }

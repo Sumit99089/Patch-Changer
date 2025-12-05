@@ -1,4 +1,4 @@
-package com.set.patchchanger.presentation.screens
+package com.set.patchchanger.presentation.main.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.set.patchchanger.domain.model.MidiConnectionState
+import com.set.patchchanger.domain.util.Constants
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 
@@ -54,7 +55,7 @@ fun CompactControlsBar(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp)
-            .height(56.dp), // Increased container height for better layout
+            .height(56.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -102,10 +103,10 @@ fun CompactControlsBar(
 
         // MIDI Channel Dropdown
         var midiDropdownExpanded by remember { mutableStateOf(false) }
-        val midiChannels = (1..16).map { it.toString() }
+        val midiChannels = (Constants.MIN_MIDI_CHANNEL..Constants.MAX_MIDI_CHANNEL).map { it.toString() }
 
         Box(
-            modifier = Modifier.width(80.dp), // Increased width to fit text and icon
+            modifier = Modifier.width(80.dp),
             contentAlignment = Alignment.CenterEnd
         ) {
             ExposedDropdownMenuBox(
@@ -116,14 +117,13 @@ fun CompactControlsBar(
                     value = settings.currentMidiChannel.toString(),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Ch", fontSize = 9.sp) }, // Added Label
+                    label = { Text("Ch", fontSize = 9.sp) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = midiDropdownExpanded) },
                     modifier = Modifier
                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
                         .fillMaxWidth(),
                     textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.Center),
                     singleLine = true,
-                    // FIX: Explicit colors to ensure visibility
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = MaterialTheme.colorScheme.onSurface,
                         unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
@@ -163,7 +163,7 @@ fun CompactSelectorBar(
     Row(
         Modifier
             .fillMaxWidth()
-            .height(50.dp) // Slightly taller for better touch
+            .height(50.dp)
             .padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
