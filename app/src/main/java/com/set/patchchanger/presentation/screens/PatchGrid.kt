@@ -1,10 +1,5 @@
 package com.set.patchchanger.presentation.screens
 
-import androidx.compose.animation.animateColor
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -51,7 +46,6 @@ import androidx.compose.ui.zIndex
 import androidx.core.graphics.toColorInt
 import com.set.patchchanger.domain.model.PatchData
 import com.set.patchchanger.domain.model.PatchSlot
-import com.set.patchchanger.ui.theme.ColorOrange
 import com.set.patchchanger.ui.theme.ColorYellow
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -92,14 +86,14 @@ fun PatchGrid(
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp) // Spacing from screenshot
             ) {
                 repeat(4) { rowIndex ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         repeat(4) { colIndex ->
                             val slotIndex = rowIndex * 4 + colIndex
@@ -262,32 +256,18 @@ fun PatchSlotCard(
         MaterialTheme.colorScheme.surfaceVariant
     }
 
-    val selectedColor = if (slot.color.isNotEmpty()) {
-        try { Color(slot.color.toColorInt()) } catch(e:Exception){ ColorOrange }
-    } else ColorOrange
-
-    // Animation for selected state (Glow)
-    val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
-    val selectedBorderColor by infiniteTransition.animateColor(
-        initialValue = selectedColor,
-        targetValue = Color.White,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "BorderPulse"
-    )
-
+    // Border logic mimics screenshot: No visible border unless selected/editing
+    // Screenshot slots are very crisp rectangles with small corner radius
     val borderColor = when {
         isDropTarget -> ColorYellow
-        slot.selected && !isEditMode -> selectedBorderColor
+        slot.selected && !isEditMode -> Color.White // White border when selected
         isEditMode -> Color.White.copy(alpha = 0.3f)
-        else -> bgColor // Match background to hide border
+        else -> Color.Transparent
     }
 
     val borderWidth = when {
         isDropTarget -> 4.dp
-        slot.selected && !isEditMode -> 4.dp // Thick selection border
+        slot.selected && !isEditMode -> 2.dp // Solid 2dp white border for selection
         isEditMode -> 1.dp
         else -> 0.dp
     }
@@ -295,13 +275,14 @@ fun PatchSlotCard(
     Card(
         modifier = modifier.graphicsLayer {
             alpha = if (isBeingDragged) 0f else 1f
-            val scale = if (slot.selected && !isEditMode) 1.02f else 1f
+            // Slight scale effect only on press/select
+            val scale = if (slot.selected && !isEditMode) 1.0f else 1f
             scaleX = scale
             scaleY = scale
         },
         colors = CardDefaults.cardColors(containerColor = bgColor),
         border = BorderStroke(borderWidth, borderColor),
-        shape = RoundedCornerShape(4.dp) // Sharp corners like screenshot
+        shape = RoundedCornerShape(4.dp) // Exact small radius from image
     ) {
         Box(
             Modifier
@@ -311,11 +292,11 @@ fun PatchSlotCard(
         ) {
             Text(
                 text = slot.getDisplayName(),
-                style = MaterialTheme.typography.headlineMedium, // Bigger Font
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = if (slot.color == "#333333" || slot.color == "#2B2B2B") Color.White else Color.White,
                 textAlign = TextAlign.Center,
-                fontSize = 20.sp, // Explicit size for grid numbers
+                fontSize = 18.sp, // Large number/text size
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )

@@ -71,21 +71,32 @@ fun MainScreenContent(
     var isEditMode by remember { mutableStateOf(false) }
 
     // Launchers for File Operations
-    val audioPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { viewModel.onEvent(MainEvent.SetSampleFile(it, viewModel.getFileName(it))) }
-    }
+    val audioPickerLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            uri?.let { viewModel.onEvent(MainEvent.SetSampleFile(it, viewModel.getFileName(it))) }
+        }
 
-    val libraryPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { viewModel.onEvent(MainEvent.AddFileToLibrary(it, viewModel.getFileName(it))) }
-    }
+    val libraryPickerLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            uri?.let {
+                viewModel.onEvent(
+                    MainEvent.AddFileToLibrary(
+                        it,
+                        viewModel.getFileName(it)
+                    )
+                )
+            }
+        }
 
-    val saveFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
-        uri?.let { viewModel.onEvent(MainEvent.PerformExport(it)) }
-    }
+    val saveFileLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+            uri?.let { viewModel.onEvent(MainEvent.PerformExport(it)) }
+        }
 
-    val loadFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-        uri?.let { viewModel.onEvent(MainEvent.PerformImport(it)) }
-    }
+    val loadFileLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            uri?.let { viewModel.onEvent(MainEvent.PerformImport(it)) }
+        }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -114,7 +125,9 @@ fun MainScreenContent(
                     Column(Modifier.fillMaxSize()) {
 
                         // 1. Top Bar
-                        AppTopBar(uiState, viewModel::onEvent, isEditMode) { isEditMode = !isEditMode }
+                        AppTopBar(uiState, viewModel::onEvent, isEditMode) {
+                            isEditMode = !isEditMode
+                        }
 
                         Box(modifier = Modifier.weight(1f)) {
                             Column(Modifier.fillMaxSize()) {
@@ -127,12 +140,31 @@ fun MainScreenContent(
                                     currentBankIndex = uiState.settings.currentBankIndex,
                                     currentPageIndex = uiState.settings.currentPageIndex,
                                     isEditMode = isEditMode,
-                                    onSlotClick = { slot -> viewModel.onEvent(MainEvent.SelectSlot(slot.id)) },
-                                    onSlotEdit = { slot -> viewModel.onEvent(MainEvent.ShowSlotColorDialog(slot)) },
-                                    onSlotSwap = { sourceId, targetId -> viewModel.onEvent(MainEvent.SwapSlots(sourceId, targetId)) },
+                                    onSlotClick = { slot ->
+                                        viewModel.onEvent(
+                                            MainEvent.SelectSlot(
+                                                slot.id
+                                            )
+                                        )
+                                    },
+                                    onSlotEdit = { slot ->
+                                        viewModel.onEvent(
+                                            MainEvent.ShowSlotColorDialog(
+                                                slot
+                                            )
+                                        )
+                                    },
+                                    onSlotSwap = { sourceId, targetId ->
+                                        viewModel.onEvent(
+                                            MainEvent.SwapSlots(
+                                                sourceId,
+                                                targetId
+                                            )
+                                        )
+                                    },
                                     modifier = Modifier
                                         .weight(1f)
-                                        .padding(horizontal = 8.dp)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
 
                                 Spacer(Modifier.height(4.dp))
@@ -151,8 +183,13 @@ fun MainScreenContent(
                     // Dialogs
                     HandleDialogs(uiState, viewModel, libraryPickerLauncher)
                 }
+
                 is MainUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                is MainUiState.Error -> Text("Error: ${uiState.message}", color = Color.Red, modifier = Modifier.align(Alignment.Center))
+                is MainUiState.Error -> Text(
+                    "Error: ${uiState.message}",
+                    color = Color.Red,
+                    modifier = Modifier.align(Alignment.Center)
+                )
             }
         }
     }
