@@ -6,31 +6,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -38,96 +18,107 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.toColorInt
+import com.set.patchchanger.R
+import com.set.patchchanger.domain.model.AppTheme
 import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
+import com.set.patchchanger.ui.theme.*
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BottomBar(
-    uiState: MainUiState,
+    uiState: MainUiState.Success,
     onEvent: (MainEvent) -> Unit,
-    isEditMode: Boolean
+    isEditMode: Boolean,
+    onToggleFullscreen: () -> Unit
 ) {
-    val samples = (uiState as? MainUiState.Success)?.samples ?: emptyList()
+    val samples = uiState.samples
 
-    Column(
+    Row(
         Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(vertical = 2.dp)
+            .height(50.dp) // Fixed height matching screenshot
+            .background(Color(0xFF101010)) // Very dark footer background
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        // Sample Pads
+        // 1. Data Management (Left)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            DataButton("Save", Icons.Default.Save, Color(0xFF2d2d2d)) { onEvent(MainEvent.RequestExportData) }
+            DataButton("Load", Icons.Default.FolderOpen, Color(0xFF2d2d2d)) { onEvent(MainEvent.RequestImportData) }
+            DataButton("Reset", Icons.Default.Close, ColorRed) { onEvent(MainEvent.ShowResetDialog(true)) }
+        }
+
+        Spacer(Modifier.width(4.dp))
+
+        // 2. Sample Pads (Center - Weight)
+        // Hardcoded colors based on screenshot if not in DB, otherwise use DB
+        val defaultColors = listOf(SampleTeal, SamplePink, SampleGreen, SamplePurple)
+
         Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 2.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            samples.take(4).forEach { sample ->
+            for (i in 0..3) {
+                val sample = samples.getOrNull(i)
+                val colorHex = sample?.color ?: "#333333"
+                // Fallback to screenshot specific colors if using default var
+                val displayColor = try {
+                    if (colorHex.startsWith("#")) Color(colorHex.toColorInt()) else defaultColors[i]
+                } catch (e: Exception) { defaultColors[i] }
+
                 SampleButton(
-                    sample = sample,
+                    name = sample?.name ?: "S${i+1}",
+                    color = displayColor,
                     isEditMode = isEditMode,
-                    onEvent = onEvent
+                    onClick = { if (sample != null) onEvent(MainEvent.TriggerSample(sample.id)) },
+                    onLongClick = { if (sample != null) onEvent(MainEvent.ShowEditSampleDialog(sample)) }
                 )
             }
         }
 
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-            modifier = Modifier.padding(vertical = 2.dp)
-        )
+        Spacer(Modifier.width(4.dp))
 
-        // Bottom Controls
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = { onEvent(MainEvent.RequestExportData) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(Icons.Default.Save, "Save", modifier = Modifier.width(18.dp))
-                }
-                IconButton(
-                    onClick = { onEvent(MainEvent.RequestImportData) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(Icons.Default.FolderOpen, "Load", modifier = Modifier.width(18.dp))
-                }
-                TextButton(
-                    onClick = { onEvent(MainEvent.ShowResetDialog(true)) },
-                    modifier = Modifier.size(60.dp, 36.dp),
-                    contentPadding = PaddingValues(2.dp)
-                ) {
-                    Text("X Reset", color = Color.Red, fontSize = 9.sp)
-                }
+        // 3. Bottom Right Controls
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            IconButton(
+                onClick = { /* Cycle Theme */ },
+                modifier = Modifier.size(42.dp).background(DarkSurface, RoundedCornerShape(4.dp)).border(1.dp, BorderColor, RoundedCornerShape(4.dp))
+            ) {
+                Icon(Icons.Default.Palette, "Theme", tint = TextSecondary, modifier = Modifier.size(20.dp))
             }
+            IconButton(
+                onClick = onToggleFullscreen,
+                modifier = Modifier.size(42.dp).background(DarkSurface, RoundedCornerShape(4.dp)).border(1.dp, BorderColor, RoundedCornerShape(4.dp))
+            ) {
+                Icon(Icons.Default.Fullscreen, "Fullscreen", tint = TextSecondary, modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+}
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Placeholder for Settings
-                IconButton(
-                    onClick = { /* TODO: Show Settings Dialog */ },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(Icons.Default.Settings, "Settings", modifier = Modifier.width(18.dp))
-                }
-                // Placeholder for Power
-                IconButton(
-                    onClick = { /* TODO: Show Power/Quit Dialog */ },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(Icons.Default.PowerSettingsNew, "Power", modifier = Modifier.width(18.dp))
-                }
-            }
+@Composable
+fun DataButton(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, bgColor: Color, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(containerColor = bgColor),
+        shape = RoundedCornerShape(4.dp),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+        modifier = Modifier.width(70.dp).fillMaxHeight(),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, modifier = Modifier.size(14.dp), tint = TextPrimary)
+            Spacer(Modifier.width(4.dp))
+            Text(text, fontSize = 11.sp, color = TextPrimary)
         }
     }
 }
@@ -135,59 +126,34 @@ fun BottomBar(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RowScope.SampleButton(
-    sample: SamplePad,
+    name: String,
+    color: Color,
     isEditMode: Boolean,
-    onEvent: (MainEvent) -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val baseColor = try {
-        Color(sample.color.toColorInt())
-    } catch (e: Exception) {
-        MaterialTheme.colorScheme.primary
-    }
-
-    // Visual feedback logic
-    val containerColor = if (isPressed) Color.White else baseColor
-    val contentColor = if (isPressed) baseColor else Color.White
-    val borderColor = if (isPressed) baseColor else Color.Transparent
-
-    Surface(
-        color = containerColor,
-        shape = RoundedCornerShape(6.dp),
+    Box(
         modifier = Modifier
             .weight(1f)
-            .padding(horizontal = 1.dp)
-            .height(40.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .border(2.dp, borderColor, RoundedCornerShape(6.dp))
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(4.dp))
+            .background(if (isPressed) Color.White else color)
             .combinedClickable(
                 interactionSource = interactionSource,
-                indication = null, // Disable default ripple to use our custom color swap
-                onClick = {
-                    if (isEditMode) onEvent(MainEvent.ShowEditSampleDialog(sample))
-                    else onEvent(MainEvent.TriggerSample(sample.id))
-                },
-                onLongClick = {
-                    onEvent(MainEvent.ShowEditSampleDialog(sample))
-                }
-            )
+                indication = null,
+                onClick = { if(isEditMode) onLongClick() else onClick() },
+                onLongClick = onLongClick
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(2.dp)
-        ) {
-            Text(
-                text = sample.name,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = contentColor,
-                fontSize = 10.sp,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-            )
-        }
+        Text(
+            text = name,
+            color = if (isPressed) color else Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp
+        )
     }
 }

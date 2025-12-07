@@ -1,6 +1,7 @@
 package com.set.patchchanger.presentation.screens
 
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,6 +45,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -68,6 +70,7 @@ import com.set.patchchanger.domain.model.AudioLibraryItem
 import com.set.patchchanger.domain.model.DisplayNameType
 import com.set.patchchanger.domain.model.PatchSlot
 import com.set.patchchanger.domain.model.SamplePad
+import com.set.patchchanger.presentation.viewmodel.MainViewModel
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 import com.set.patchchanger.ui.theme.getModxColors
@@ -184,8 +187,6 @@ fun EditSampleDialog(
     val buttonColor = try {
         Color(sample.color.toColorInt())
     } catch (e: Exception) {
-        Toast.makeText(LocalContext.current, "Some Error Occurred: ${e.message}", Toast.LENGTH_LONG)
-            .show()
         MaterialTheme.colorScheme.primary
     }
 
@@ -343,13 +344,15 @@ fun AudioLibraryDialog(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedItem by remember { mutableStateOf<AudioLibraryItem?>(null) }
-    val filteredList = library.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    // remember(library, searchQuery) ensures efficient filtering only when inputs change
+    val filteredList = remember(library, searchQuery) {
+        library.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxHeight(0.8f)) {
             Column(
-                Modifier
-                    .padding(16.dp)
+                Modifier.padding(16.dp)
             ) {
                 Text("Select Audio from Library", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(8.dp))
@@ -364,21 +367,41 @@ fun AudioLibraryDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .border(1.dp, MaterialTheme.colorScheme.outline)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
                 ) {
-                    items(filteredList) { item ->
-                        Text(
-                            text = item.name,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedItem = item }
-                                .background(
-                                    if (selectedItem == item) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                    if (filteredList.isEmpty()) {
+                        item {
+                            Text(
+                                "No items found",
+                                modifier = Modifier.padding(16.dp),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+
+                    items(filteredList, key = { it.name }) { item ->
+                        val isSelected = selectedItem == item
+                        // Use Surface for proper click handling and background
+                        Surface(
+                            onClick = { selectedItem = item },
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                Text(
+                                    text = item.name,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                 )
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                    thickness = 1.dp
+                                )
+                            }
+                        }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -944,5 +967,144 @@ fun LoadFileDialog(
                 }
             }
         }
+    }
+}
+
+/**
+ * Main Controller for showing dialogs based on state
+ */
+@Composable
+fun HandleDialogs(
+    uiState: MainUiState.Success,
+    viewModel: MainViewModel,
+    libraryPickerLauncher: ActivityResultLauncher<String>
+) {
+    if (uiState.showResetDialog) {
+        ConfirmationDialog(
+            title = "Reset All Data",
+            text = "Are you sure you want to reset all data, including the audio library?",
+            onConfirm = { viewModel.onEvent(MainEvent.ResetData) },
+            onDismiss = { viewModel.onEvent(MainEvent.ShowResetDialog(false)) }
+        )
+    }
+
+    if (uiState.showBankPageNameDialog) {
+        BankPageNameDialog(
+            state = uiState,
+            onDismiss = { viewModel.onEvent(MainEvent.ShowBankPageNameDialog(false)) },
+            onSaveBank = {
+                viewModel.onEvent(
+                    MainEvent.UpdateBankName(
+                        uiState.settings.currentBankIndex,
+                        it
+                    )
+                )
+            },
+            onSavePage = {
+                viewModel.onEvent(
+                    MainEvent.UpdatePageName(
+                        uiState.settings.currentPageIndex,
+                        it
+                    )
+                )
+            }
+        )
+    }
+
+    uiState.editingSample?.let { sample ->
+        EditSampleDialog(
+            sample = sample,
+            onDismiss = { viewModel.onEvent(MainEvent.ShowEditSampleDialog(null)) },
+            onSave = { viewModel.onEvent(MainEvent.UpdateSample(it)) },
+            onLoadFile = { viewModel.onEvent(MainEvent.LoadSampleFile) },
+            onSelectFromLibrary = {
+                viewModel.onEvent(
+                    MainEvent.ShowAudioLibrary(
+                        true,
+                        sample.id
+                    )
+                )
+            },
+            onClearAudio = { viewModel.onEvent(MainEvent.ClearSampleAudio(sample.id)) },
+            onEditColor = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(sample)) }
+        )
+    }
+
+    if (uiState.showAudioLibrary) {
+        AudioLibraryDialog(
+            library = uiState.audioLibrary,
+            onDismiss = { viewModel.onEvent(MainEvent.ShowAudioLibrary(false)) },
+            onSelect = { viewModel.onEvent(MainEvent.SelectSampleFromLibrary(it)) },
+            onDelete = { viewModel.onEvent(MainEvent.DeleteFromAudioLibrary(it)) },
+            onAddFile = { libraryPickerLauncher.launch("audio/*") }
+        )
+    }
+
+    uiState.slotToPaste?.let { slot ->
+        ConfirmationDialog(
+            title = "Confirm Paste",
+            text = "Paste over '${slot.getDisplayName()}'?",
+            onConfirm = { viewModel.onEvent(MainEvent.PasteSlot(slot)) },
+            onDismiss = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(null)) }
+        )
+    }
+
+    uiState.slotToClear?.let { slot ->
+        ConfirmationDialog(
+            title = "Clear Slot",
+            text = "Are you sure you want to clear slot '${slot.getDisplayName()}'?",
+            onConfirm = { viewModel.onEvent(MainEvent.ClearSlot(slot)) },
+            onDismiss = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(null)) }
+        )
+    }
+
+    uiState.slotToSwap?.let { slot ->
+        val currentPageSlots = uiState.patchData.banks.getOrNull(uiState.settings.currentBankIndex)
+            ?.pages?.getOrNull(uiState.settings.currentPageIndex)?.slots ?: emptyList()
+
+        SwapDialog(
+            currentPageSlots = currentPageSlots,
+            sourceSlot = slot,
+            onDismiss = { viewModel.onEvent(MainEvent.ShowSwapDialog(null)) },
+            onSelectSlot = { targetSlot ->
+                viewModel.onEvent(
+                    MainEvent.SwapSlots(
+                        slot.id,
+                        targetSlot.id
+                    )
+                )
+            }
+        )
+    }
+
+    uiState.slotToEditColor?.let { slot ->
+        EditSlotDialog(
+            slot = slot,
+            onDismiss = { viewModel.onEvent(MainEvent.ShowSlotColorDialog(null)) },
+            onSave = { viewModel.onEvent(MainEvent.UpdateSlot(it)) },
+            onCopy = { viewModel.onEvent(MainEvent.CopySlot(slot)) },
+            onPaste = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(slot)) },
+            onSwap = { viewModel.onEvent(MainEvent.ShowSwapDialog(slot)) },
+            onClear = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(slot)) },
+            samples = uiState.samples,
+            onShowPerformanceBrowser = { viewModel.onEvent(MainEvent.ShowPerformanceBrowser(slot)) }
+        )
+    }
+
+    uiState.sampleToEditColor?.let { sample ->
+        ColorPickerDialog(
+            onDismiss = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(null)) },
+            onColorSelected = { colorHex ->
+                viewModel.onEvent(MainEvent.UpdateSample(sample.copy(color = colorHex)))
+                viewModel.onEvent(MainEvent.ShowSampleColorDialog(null))
+            }
+        )
+    }
+
+    if (uiState.showPerformanceBrowser) {
+        PerformanceBrowserDialog(
+            uiState = uiState,
+            onEvent = viewModel::onEvent
+        )
     }
 }

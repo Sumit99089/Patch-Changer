@@ -1,38 +1,37 @@
 package com.set.patchchanger.presentation.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,273 +40,244 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.set.patchchanger.R
 import com.set.patchchanger.domain.model.MidiConnectionState
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
+import com.set.patchchanger.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopBar(
-    uiState: MainUiState,
-    onEvent: (MainEvent) -> Unit
+fun AppTopBar(
+    uiState: MainUiState.Success,
+    onEvent: (MainEvent) -> Unit,
+    isEditMode: Boolean,
+    onToggleEdit: () -> Unit
 ) {
-    val midiState = (uiState as? MainUiState.Success)?.midiState
-    val barColor =
-        if (midiState is MidiConnectionState.Connected) Color(0xFF1B5E20) else MaterialTheme.colorScheme.surfaceVariant
-
-    TopAppBar(
-        title = {
-            Column {
-                Text("Live Set Patch Changer", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = stringResource(R.string.user),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = barColor),
-        actions = {}
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CompactControlsBar(
-    state: MainUiState.Success,
-    onEvent: (MainEvent) -> Unit
-) {
-    val settings = state.settings
-    val midiState = state.midiState
+    val midiState = uiState.midiState
+    val settings = uiState.settings
 
     Row(
-        Modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp)
-            .height(56.dp), // Increased container height for better layout
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .height(50.dp)
+            .background(Color(0xFF151515)) // Slightly darker for the bar
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Transpose
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
-        ) {
-            IconButton(
-                onClick = { onEvent(MainEvent.UpdateTranspose(-1)) },
-                modifier = Modifier.size(36.dp)
-            ) {
-                Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
+        // 1. Title Section
+        Column(modifier = Modifier.width(180.dp)) {
             Text(
-                text = if (settings.currentTranspose > 0) "+${settings.currentTranspose}" else "${settings.currentTranspose}",
-                color = if (settings.currentTranspose != 0) Color(0xFFFFA726) else MaterialTheme.colorScheme.onSurface,
+                "Live Set Patch Changer",
+                color = TextPrimary,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .clickable { onEvent(MainEvent.ResetTranspose) }
-                    .padding(horizontal = 4.dp),
-                fontSize = 14.sp
+                fontSize = 16.sp
             )
-            IconButton(
-                onClick = { onEvent(MainEvent.UpdateTranspose(1)) },
-                modifier = Modifier.size(36.dp)
-            ) {
-                Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
+            Text(
+                "SRIKANTA",
+                color = TextSecondary,
+                fontSize = 10.sp
+            )
         }
 
-        // Connection Status
-        Text(
-            text = if (midiState is MidiConnectionState.Connected) midiState.deviceName else "Not Connected",
-            color = if (midiState is MidiConnectionState.Connected) Color.Green else Color.Red,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
-            modifier = Modifier
-                .weight(1f)
-                .clickable {
-                    if (midiState !is MidiConnectionState.Connected) {
-                        onEvent(MainEvent.ConnectMidi)
-                    }
-                }
-                .padding(horizontal = 4.dp),
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+        Spacer(Modifier.width(16.dp))
 
-        // MIDI Channel Dropdown
-        var midiDropdownExpanded by remember { mutableStateOf(false) }
-        val midiChannels = (1..16).map { it.toString() }
+        // 2. Search Bar (Center)
+        Box(modifier = Modifier.weight(1f)) {
+            OutlinedTextField(
+                value = uiState.searchQuery,
+                onValueChange = { onEvent(MainEvent.UpdateSearchQuery(it)) },
+                placeholder = { Text("Search all patches...", fontSize = 12.sp) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp),
+                textStyle = TextStyle(fontSize = 12.sp, color = TextPrimary),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = BorderColor,
+                    unfocusedBorderColor = BorderColor,
+                    focusedContainerColor = DarkSurface,
+                    unfocusedContainerColor = DarkSurface,
+                    cursorColor = ColorBlueTitle
+                ),
+                shape = RoundedCornerShape(4.dp)
+            )
+        }
 
-        Box(
-            modifier = Modifier.width(80.dp), // Increased width to fit text and icon
-            contentAlignment = Alignment.CenterEnd
-        ) {
-            ExposedDropdownMenuBox(
-                expanded = midiDropdownExpanded,
-                onExpandedChange = { midiDropdownExpanded = !midiDropdownExpanded }
+        Spacer(Modifier.width(16.dp))
+
+        // 3. Right Controls
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+            // Transpose Control
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.background(DarkSurface, RoundedCornerShape(4.dp)).padding(2.dp)
             ) {
-                OutlinedTextField(
-                    value = settings.currentMidiChannel.toString(),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Ch", fontSize = 9.sp) }, // Added Label
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = midiDropdownExpanded) },
-                    modifier = Modifier
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
-                        .fillMaxWidth(),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.Center),
-                    singleLine = true,
-                    // FIX: Explicit colors to ensure visibility
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        focusedBorderColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedContainerColor = Color.Transparent
-                    )
+                Text("Transpose", color = TextSecondary, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 4.dp))
+                IconButton(
+                    onClick = { onEvent(MainEvent.UpdateTranspose(-1)) },
+                    modifier = Modifier.size(30.dp).background(BorderColor, RoundedCornerShape(4.dp))
+                ) { Text("-", color = TextPrimary, fontWeight = FontWeight.Bold) }
+
+                Text(
+                    text = if (settings.currentTranspose > 0) "+${settings.currentTranspose}" else "${settings.currentTranspose}",
+                    color = ColorYellow,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.width(30.dp).clickable { onEvent(MainEvent.ResetTranspose) },
+                    textAlign = TextAlign.Center
                 )
-                ExposedDropdownMenu(
-                    expanded = midiDropdownExpanded,
-                    onDismissRequest = { midiDropdownExpanded = false }
+
+                IconButton(
+                    onClick = { onEvent(MainEvent.UpdateTranspose(1)) },
+                    modifier = Modifier.size(30.dp).background(BorderColor, RoundedCornerShape(4.dp))
+                ) { Text("+", color = TextPrimary, fontWeight = FontWeight.Bold) }
+            }
+
+            // MIDI Status Text
+            Text(
+                text = if (midiState is MidiConnectionState.Connected) midiState.deviceName else "MIDI Access Denied",
+                color = if (midiState is MidiConnectionState.Connected) ColorGreen else ColorRed,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable { onEvent(MainEvent.ConnectMidi) }
+            )
+
+            // MIDI Channel Dropdown
+            var midiMenuExpanded by remember { mutableStateOf(false) }
+            Box {
+                Button(
+                    onClick = { midiMenuExpanded = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = if(midiState is MidiConnectionState.Connected) ColorGreen else ColorRed),
+                    shape = RoundedCornerShape(4.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    modifier = Modifier.height(30.dp)
                 ) {
-                    midiChannels.forEach { channel ->
+                    Text("MIDI", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(4.dp))
+                    Text(settings.currentMidiChannel.toString(), color = Color.Black, fontSize = 10.sp)
+                    Icon(Icons.Default.ArrowDropDown, null, tint = Color.Black, modifier = Modifier.size(16.dp))
+                }
+                DropdownMenu(
+                    expanded = midiMenuExpanded,
+                    onDismissRequest = { midiMenuExpanded = false }
+                ) {
+                    (1..16).forEach { ch ->
                         DropdownMenuItem(
-                            text = { Text(channel) },
+                            text = { Text("Channel $ch") },
                             onClick = {
-                                onEvent(MainEvent.UpdateMidiChannel(channel.toInt()))
-                                midiDropdownExpanded = false
-                            },
-                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                                onEvent(MainEvent.UpdateMidiChannel(ch))
+                                midiMenuExpanded = false
+                            }
                         )
                     }
                 }
             }
+
+            // Edit Button
+            Button(
+                onClick = onToggleEdit,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isEditMode) ColorOrange else DarkSurface,
+                    contentColor = if (isEditMode) Color.Black else TextPrimary
+                ),
+                border = if(!isEditMode) androidx.compose.foundation.BorderStroke(1.dp, BorderColor) else null,
+                shape = RoundedCornerShape(4.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                modifier = Modifier.height(30.dp)
+            ) {
+                Icon(Icons.Default.Edit, null, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(if (isEditMode) "Done" else "Edit", fontSize = 12.sp)
+            }
         }
     }
 }
 
 @Composable
-fun CompactSelectorBar(
-    state: MainUiState.Success,
-    onEvent: (MainEvent) -> Unit,
-    onToggleEdit: () -> Unit,
-    isEditMode: Boolean
+fun SelectorBar(
+    uiState: MainUiState.Success,
+    onEvent: (MainEvent) -> Unit
 ) {
     Row(
-        Modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp) // Slightly taller for better touch
-            .padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        CompactSelector(
+        // Bank Selector (Left)
+        SelectorItem(
             label = "Bank",
-            value = state.patchData.bankNames.getOrElse(state.settings.currentBankIndex) { "" },
+            value = uiState.patchData.bankNames.getOrElse(uiState.settings.currentBankIndex) { "User 1" },
             onPrev = { onEvent(MainEvent.NavigateBank(-1)) },
             onNext = { onEvent(MainEvent.NavigateBank(1)) },
             onClick = { onEvent(MainEvent.ShowBankPageNameDialog(true)) },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).padding(end = 4.dp)
         )
-        CompactSelector(
+
+        // Page Selector (Right)
+        SelectorItem(
             label = "Page",
-            value = state.patchData.pageNames.getOrElse(state.settings.currentPageIndex) { "" },
+            value = uiState.patchData.pageNames.getOrElse(uiState.settings.currentPageIndex) { "Page 1" },
             onPrev = { onEvent(MainEvent.NavigatePage(-1)) },
             onNext = { onEvent(MainEvent.NavigatePage(1)) },
             onClick = { onEvent(MainEvent.ShowBankPageNameDialog(true)) },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).padding(start = 4.dp)
         )
-
-        // Edit Mode Toggle Button
-        FilledTonalButton(
-            onClick = onToggleEdit,
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = if (isEditMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = if (isEditMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
-            ),
-            modifier = Modifier
-                .width(60.dp)
-                .height(40.dp),
-            contentPadding = PaddingValues(0.dp),
-            shape = MaterialTheme.shapes.small
-        ) {
-            Icon(
-                imageVector = Icons.Default.Edit,
-                contentDescription = "Edit",
-                modifier = Modifier.size(20.dp)
-            )
-        }
     }
 }
 
 @Composable
-fun CompactSelector(
+fun SelectorItem(
     label: String,
     value: String,
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier
 ) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(
-            onClick = onPrev,
-            modifier = Modifier.size(32.dp)
+        // Up Arrow
+        Surface(
+            color = DarkSurface,
+            shape = RoundedCornerShape(4.dp),
+            modifier = Modifier.size(36.dp).clickable(onClick = onPrev),
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
         ) {
-            Icon(Icons.Default.ArrowUpward, null, modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.ArrowDropUp, null, tint = TextPrimary, modifier = Modifier.padding(4.dp))
         }
 
-        Card(
+        // Display Box
+        Box(
             modifier = Modifier
                 .weight(1f)
-                .height(40.dp)
-                .clickable { onClick() },
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            shape = MaterialTheme.shapes.small
+                .height(36.dp)
+                .padding(horizontal = 4.dp)
+                .background(Color(0xFF222222), RoundedCornerShape(4.dp))
+                .border(1.dp, BorderColor, RoundedCornerShape(4.dp))
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 8.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                )
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(label, color = TextSecondary, fontSize = 8.sp)
+                Text(value, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
             }
         }
 
-        IconButton(
-            onClick = onNext,
-            modifier = Modifier.size(32.dp)
+        // Down Arrow
+        Surface(
+            color = DarkSurface,
+            shape = RoundedCornerShape(4.dp),
+            modifier = Modifier.size(36.dp).clickable(onClick = onNext),
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
         ) {
-            Icon(Icons.Default.ArrowDownward, null, modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.ArrowDropDown, null, tint = TextPrimary, modifier = Modifier.padding(4.dp))
         }
     }
 }

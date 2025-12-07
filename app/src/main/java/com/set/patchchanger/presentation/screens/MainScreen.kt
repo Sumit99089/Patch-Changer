@@ -19,10 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -48,63 +45,50 @@ import com.set.patchchanger.presentation.viewmodel.MainViewModel
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.event.UiEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
+import com.set.patchchanger.ui.theme.DarkBackground
 import com.set.patchchanger.ui.theme.PatchChangerTheme
-import kotlinx.coroutines.flow.collectLatest
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    viewModel: MainViewModel = hiltViewModel()
+    viewModel: MainViewModel = hiltViewModel(),
+    onToggleFullscreen: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentTheme = (uiState as? MainUiState.Success)?.settings?.theme ?: AppTheme.BLACK
 
     PatchChangerTheme(appTheme = currentTheme) {
-        MainScreenContent(viewModel, uiState)
+        MainScreenContent(viewModel, uiState, onToggleFullscreen)
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenContent(
     viewModel: MainViewModel,
-    uiState: MainUiState
+    uiState: MainUiState,
+    onToggleFullscreen: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var isEditMode by remember { mutableStateOf(false) }
 
     // Launchers for File Operations
-    val audioPickerLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            uri?.let { viewModel.onEvent(MainEvent.SetSampleFile(it, viewModel.getFileName(it))) }
-        }
+    val audioPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { viewModel.onEvent(MainEvent.SetSampleFile(it, viewModel.getFileName(it))) }
+    }
 
-    val libraryPickerLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            uri?.let {
-                viewModel.onEvent(
-                    MainEvent.AddFileToLibrary(
-                        it,
-                        viewModel.getFileName(it)
-                    )
-                )
-            }
-        }
+    val libraryPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { viewModel.onEvent(MainEvent.AddFileToLibrary(it, viewModel.getFileName(it))) }
+    }
 
-    // Save File Launcher (Export JSON)
-    val saveFileLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
-            uri?.let { viewModel.onEvent(MainEvent.PerformExport(it)) }
-        }
+    val saveFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+        uri?.let { viewModel.onEvent(MainEvent.PerformExport(it)) }
+    }
 
-    // Load File Launcher (Import JSON) - System Picker
-    val loadFileLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-            uri?.let { viewModel.onEvent(MainEvent.PerformImport(it)) }
-        }
+    val loadFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let { viewModel.onEvent(MainEvent.PerformImport(it)) }
+    }
 
     LaunchedEffect(Unit) {
-        viewModel.events.collectLatest { event ->
+        viewModel.events.collect { event ->
             when (event) {
                 is UiEvent.ShowMessage -> snackbarHostState.showSnackbar(event.message)
                 is UiEvent.RequestFilePicker -> audioPickerLauncher.launch("audio/*")
@@ -116,116 +100,59 @@ fun MainScreenContent(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = { TopBar(uiState = uiState, onEvent = viewModel::onEvent) },
-        bottomBar = {
-            BottomBar(
-                uiState = uiState,
-                onEvent = viewModel::onEvent,
-                isEditMode = isEditMode
-            )
-        }
+        containerColor = DarkBackground,
+        contentColor = Color.White
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
+                .background(DarkBackground)
         ) {
             when (uiState) {
                 is MainUiState.Success -> {
-                    // Box to allow search results to overlay
-                    Box(Modifier.fillMaxSize()) {
-                        Column(Modifier
-                            .fillMaxSize()
-                            .padding(4.dp)) {
-                            // Search Bar
-                            OutlinedTextField(
-                                value = uiState.searchQuery,
-                                onValueChange = { viewModel.onEvent(MainEvent.UpdateSearchQuery(it)) },
-                                label = { Text("Search all patches...") },
-                                modifier = Modifier.fillMaxWidth(),
-                                textStyle = MaterialTheme.typography.bodySmall,
-                                singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.onSurface,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(
-                                        alpha = 0.5f
-                                    ),
-                                    focusedLabelColor = MaterialTheme.colorScheme.onSurface,
-                                    cursorColor = MaterialTheme.colorScheme.onSurface,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    focusedContainerColor = Color.Transparent
-                                )
-                            )
+                    Column(Modifier.fillMaxSize()) {
 
-                            Spacer(Modifier.height(4.dp))
+                        // 1. Top Bar
+                        AppTopBar(uiState, viewModel::onEvent, isEditMode) { isEditMode = !isEditMode }
 
-                            CompactControlsBar(state = uiState, onEvent = viewModel::onEvent)
+                        Box(modifier = Modifier.weight(1f)) {
+                            Column(Modifier.fillMaxSize()) {
+                                // 2. Selector Bar
+                                SelectorBar(uiState, viewModel::onEvent)
 
-                            Spacer(Modifier.height(4.dp))
-
-                            CompactSelectorBar(
-                                state = uiState,
-                                onEvent = viewModel::onEvent,
-                                onToggleEdit = { isEditMode = !isEditMode },
-                                isEditMode = isEditMode
-                            )
-
-                            Spacer(Modifier.height(4.dp))
-
-                            // Patch Grid
-                            Box(modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()) {
+                                // 3. Grid
                                 PatchGrid(
                                     patchData = uiState.patchData,
                                     currentBankIndex = uiState.settings.currentBankIndex,
                                     currentPageIndex = uiState.settings.currentPageIndex,
                                     isEditMode = isEditMode,
-                                    onSlotClick = { slot ->
-                                        viewModel.onEvent(
-                                            MainEvent.SelectSlot(
-                                                slot.id
-                                            )
-                                        )
-                                    },
-                                    onSlotEdit = { slot ->
-                                        viewModel.onEvent(
-                                            MainEvent.ShowSlotColorDialog(
-                                                slot
-                                            )
-                                        )
-                                    },
-                                    onSlotSwap = { sourceId, targetId ->
-                                        viewModel.onEvent(
-                                            MainEvent.SwapSlots(
-                                                sourceId,
-                                                targetId
-                                            )
-                                        )
-                                    },
-                                    modifier = Modifier.fillMaxSize()
+                                    onSlotClick = { slot -> viewModel.onEvent(MainEvent.SelectSlot(slot.id)) },
+                                    onSlotEdit = { slot -> viewModel.onEvent(MainEvent.ShowSlotColorDialog(slot)) },
+                                    onSlotSwap = { sourceId, targetId -> viewModel.onEvent(MainEvent.SwapSlots(sourceId, targetId)) },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 8.dp)
                                 )
+
+                                Spacer(Modifier.height(4.dp))
+                            }
+
+                            // Search Overlay
+                            if (uiState.searchQuery.isNotBlank() && uiState.searchResults.isNotEmpty()) {
+                                SearchResultsOverlay(uiState, viewModel::onEvent)
                             }
                         }
 
-                        // --- Search Results Overlay ---
-                        SearchResultsOverlay(
-                            uiState = uiState,
-                            onEvent = viewModel::onEvent
-                        )
+                        // 4. Bottom Bar
+                        BottomBar(uiState, viewModel::onEvent, isEditMode, onToggleFullscreen)
                     }
 
-                    // --- Dialogs (Calling Logic) ---
+                    // Dialogs
                     HandleDialogs(uiState, viewModel, libraryPickerLauncher)
                 }
-
                 is MainUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                is MainUiState.Error -> Text(
-                    "Error: ${uiState.message}",
-                    color = Color.Red,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                is MainUiState.Error -> Text("Error: ${uiState.message}", color = Color.Red, modifier = Modifier.align(Alignment.Center))
             }
         }
     }
@@ -236,24 +163,21 @@ fun SearchResultsOverlay(
     uiState: MainUiState.Success,
     onEvent: (MainEvent) -> Unit
 ) {
-    if (uiState.searchQuery.isNotBlank() && uiState.searchResults.isNotEmpty()) {
-        Card(
-            modifier = Modifier
-                .padding(horizontal = 4.dp)
-                .padding(top = (48 + 4).dp)
-                .fillMaxWidth()
-                .heightIn(max = 300.dp)
-                .zIndex(10f),
-            elevation = CardDefaults.cardElevation(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            LazyColumn {
-                items(uiState.searchResults) { result ->
-                    SearchResultItem(
-                        result = result,
-                        onClick = { onEvent(MainEvent.GoToSearchResult(result)) }
-                    )
-                }
+    Card(
+        modifier = Modifier
+            .padding(top = 0.dp, start = 200.dp, end = 200.dp) // Centered under search bar approx
+            .fillMaxWidth(0.5f)
+            .heightIn(max = 300.dp)
+            .zIndex(100f),
+        elevation = CardDefaults.cardElevation(8.dp),
+        colors = CardDefaults.cardColors(containerColor = com.set.patchchanger.ui.theme.DarkSurface)
+    ) {
+        LazyColumn {
+            items(uiState.searchResults) { result ->
+                SearchResultItem(
+                    result = result,
+                    onClick = { onEvent(MainEvent.GoToSearchResult(result)) }
+                )
             }
         }
     }
@@ -277,7 +201,8 @@ fun SearchResultItem(
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                color = Color.White
             )
             Text(
                 text = "Bank: ${result.bankName}  |  Page: ${result.pageName}",
@@ -285,139 +210,5 @@ fun SearchResultItem(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         }
-    }
-}
-
-
-@Composable
-fun HandleDialogs(
-    uiState: MainUiState.Success,
-    viewModel: MainViewModel,
-    libraryPickerLauncher: androidx.activity.result.ActivityResultLauncher<String>
-) {
-    if (uiState.showResetDialog) {
-        ConfirmationDialog(
-            title = "Reset All Data",
-            text = "Are you sure you want to reset all data, including the audio library?",
-            onConfirm = { viewModel.onEvent(MainEvent.ResetData) },
-            onDismiss = { viewModel.onEvent(MainEvent.ShowResetDialog(false)) }
-        )
-    }
-
-    if (uiState.showBankPageNameDialog) {
-        BankPageNameDialog(
-            state = uiState,
-            onDismiss = { viewModel.onEvent(MainEvent.ShowBankPageNameDialog(false)) },
-            onSaveBank = {
-                viewModel.onEvent(
-                    MainEvent.UpdateBankName(
-                        uiState.settings.currentBankIndex,
-                        it
-                    )
-                )
-            },
-            onSavePage = {
-                viewModel.onEvent(
-                    MainEvent.UpdatePageName(
-                        uiState.settings.currentPageIndex,
-                        it
-                    )
-                )
-            }
-        )
-    }
-
-    uiState.editingSample?.let { sample ->
-        EditSampleDialog(
-            sample = sample,
-            onDismiss = { viewModel.onEvent(MainEvent.ShowEditSampleDialog(null)) },
-            onSave = { viewModel.onEvent(MainEvent.UpdateSample(it)) },
-            onLoadFile = { viewModel.onEvent(MainEvent.LoadSampleFile) },
-            onSelectFromLibrary = {
-                viewModel.onEvent(
-                    MainEvent.ShowAudioLibrary(
-                        true,
-                        sample.id
-                    )
-                )
-            },
-            onClearAudio = { viewModel.onEvent(MainEvent.ClearSampleAudio(sample.id)) },
-            onEditColor = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(sample)) }
-        )
-    }
-
-    if (uiState.showAudioLibrary) {
-        AudioLibraryDialog(
-            library = uiState.audioLibrary,
-            onDismiss = { viewModel.onEvent(MainEvent.ShowAudioLibrary(false)) },
-            onSelect = { viewModel.onEvent(MainEvent.SelectSampleFromLibrary(it)) },
-            onDelete = { viewModel.onEvent(MainEvent.DeleteFromAudioLibrary(it)) },
-            onAddFile = { libraryPickerLauncher.launch("audio/*") }
-        )
-    }
-
-    uiState.slotToPaste?.let { slot ->
-        ConfirmationDialog(
-            title = "Confirm Paste",
-            text = "Paste '${viewModel.internalState.value.slotToPaste?.getDisplayName() ?: "..."}' over '${slot.getDisplayName()}'?",
-            onConfirm = { viewModel.onEvent(MainEvent.PasteSlot(slot)) },
-            onDismiss = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(null)) }
-        )
-    }
-
-    uiState.slotToClear?.let { slot ->
-        ConfirmationDialog(
-            title = "Clear Slot",
-            text = "Are you sure you want to clear slot '${slot.getDisplayName()}'?",
-            onConfirm = { viewModel.onEvent(MainEvent.ClearSlot(slot)) },
-            onDismiss = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(null)) }
-        )
-    }
-
-    uiState.slotToSwap?.let { slot ->
-        SwapDialog(
-            currentPageSlots = uiState.patchData.banks[uiState.settings.currentBankIndex].pages[uiState.settings.currentPageIndex].slots,
-            sourceSlot = slot,
-            onDismiss = { viewModel.onEvent(MainEvent.ShowSwapDialog(null)) },
-            onSelectSlot = { targetSlot ->
-                viewModel.onEvent(
-                    MainEvent.SwapSlots(
-                        slot.id,
-                        targetSlot.id
-                    )
-                )
-            }
-        )
-    }
-
-    uiState.slotToEditColor?.let { slot ->
-        EditSlotDialog(
-            slot = slot,
-            onDismiss = { viewModel.onEvent(MainEvent.ShowSlotColorDialog(null)) },
-            onSave = { viewModel.onEvent(MainEvent.UpdateSlot(it)) },
-            onCopy = { viewModel.onEvent(MainEvent.CopySlot(slot)) },
-            onPaste = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(slot)) },
-            onSwap = { viewModel.onEvent(MainEvent.ShowSwapDialog(slot)) },
-            onClear = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(slot)) },
-            samples = uiState.samples,
-            onShowPerformanceBrowser = { viewModel.onEvent(MainEvent.ShowPerformanceBrowser(slot)) }
-        )
-    }
-
-    uiState.sampleToEditColor?.let { sample ->
-        ColorPickerDialog(
-            onDismiss = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(null)) },
-            onColorSelected = { colorHex ->
-                viewModel.onEvent(MainEvent.UpdateSample(sample.copy(color = colorHex)))
-                viewModel.onEvent(MainEvent.ShowSampleColorDialog(null))
-            }
-        )
-    }
-
-    if (uiState.showPerformanceBrowser) {
-        PerformanceBrowserDialog(
-            uiState = uiState,
-            onEvent = viewModel::onEvent
-        )
     }
 }

@@ -51,6 +51,8 @@ import androidx.compose.ui.zIndex
 import androidx.core.graphics.toColorInt
 import com.set.patchchanger.domain.model.PatchData
 import com.set.patchchanger.domain.model.PatchSlot
+import com.set.patchchanger.ui.theme.ColorOrange
+import com.set.patchchanger.ui.theme.ColorYellow
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -90,7 +92,7 @@ fun PatchGrid(
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(4.dp) // Slightly increased spacing
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 repeat(4) { rowIndex ->
                     Row(
@@ -260,28 +262,32 @@ fun PatchSlotCard(
         MaterialTheme.colorScheme.surfaceVariant
     }
 
-    // Animation for selected state
+    val selectedColor = if (slot.color.isNotEmpty()) {
+        try { Color(slot.color.toColorInt()) } catch(e:Exception){ ColorOrange }
+    } else ColorOrange
+
+    // Animation for selected state (Glow)
     val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
     val selectedBorderColor by infiniteTransition.animateColor(
-        initialValue = bgColor,
+        initialValue = selectedColor,
         targetValue = Color.White,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200),
+            animation = tween(800),
             repeatMode = RepeatMode.Reverse
         ),
         label = "BorderPulse"
     )
 
     val borderColor = when {
-        isDropTarget -> Color.Yellow
+        isDropTarget -> ColorYellow
         slot.selected && !isEditMode -> selectedBorderColor
         isEditMode -> Color.White.copy(alpha = 0.3f)
-        else -> Color.Transparent
+        else -> bgColor // Match background to hide border
     }
 
     val borderWidth = when {
         isDropTarget -> 4.dp
-        slot.selected && !isEditMode -> 3.dp // Thicker selection border
+        slot.selected && !isEditMode -> 4.dp // Thick selection border
         isEditMode -> 1.dp
         else -> 0.dp
     }
@@ -289,14 +295,13 @@ fun PatchSlotCard(
     Card(
         modifier = modifier.graphicsLayer {
             alpha = if (isBeingDragged) 0f else 1f
-            // Slight scale effect if selected
             val scale = if (slot.selected && !isEditMode) 1.02f else 1f
             scaleX = scale
             scaleY = scale
         },
         colors = CardDefaults.cardColors(containerColor = bgColor),
         border = BorderStroke(borderWidth, borderColor),
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(4.dp) // Sharp corners like screenshot
     ) {
         Box(
             Modifier
@@ -306,13 +311,13 @@ fun PatchSlotCard(
         ) {
             Text(
                 text = slot.getDisplayName(),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.headlineMedium, // Bigger Font
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
                 textAlign = TextAlign.Center,
-                fontSize = 14.sp,
-                maxLines = 3,
-                lineHeight = 16.sp
+                fontSize = 20.sp, // Explicit size for grid numbers
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
     }
