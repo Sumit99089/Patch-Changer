@@ -45,7 +45,6 @@ import com.set.patchchanger.presentation.viewmodel.MainViewModel
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.event.UiEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
-import com.set.patchchanger.ui.theme.DarkBackground
 import com.set.patchchanger.ui.theme.PatchChangerTheme
 
 @Composable
@@ -57,6 +56,7 @@ fun MainScreen(
     val currentTheme = (uiState as? MainUiState.Success)?.settings?.theme ?: AppTheme.BLACK
 
     PatchChangerTheme(appTheme = currentTheme) {
+        // Pass current theme to content to ensure scaffold uses it
         MainScreenContent(viewModel, uiState, onToggleFullscreen)
     }
 }
@@ -70,12 +70,11 @@ fun MainScreenContent(
     val snackbarHostState = remember { SnackbarHostState() }
     var isEditMode by remember { mutableStateOf(false) }
 
-    // Launchers for File Operations
+    // Launchers
     val audioPickerLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let { viewModel.onEvent(MainEvent.SetSampleFile(it, viewModel.getFileName(it))) }
         }
-
     val libraryPickerLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let {
@@ -87,12 +86,10 @@ fun MainScreenContent(
                 )
             }
         }
-
     val saveFileLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
             uri?.let { viewModel.onEvent(MainEvent.PerformExport(it)) }
         }
-
     val loadFileLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
             uri?.let { viewModel.onEvent(MainEvent.PerformImport(it)) }
@@ -111,19 +108,20 @@ fun MainScreenContent(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = DarkBackground,
-        contentColor = Color.White
+        // CRITICAL FIX: Use MaterialTheme.colorScheme.background to apply theme globally
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(DarkBackground)
+                // Double ensure background is applied
+                .background(MaterialTheme.colorScheme.background)
         ) {
             when (uiState) {
                 is MainUiState.Success -> {
                     Column(Modifier.fillMaxSize()) {
-
                         // 1. Top Bar
                         AppTopBar(uiState, viewModel::onEvent, isEditMode) {
                             isEditMode = !isEditMode
@@ -131,8 +129,8 @@ fun MainScreenContent(
 
                         Box(modifier = Modifier.weight(1f)) {
                             Column(Modifier.fillMaxSize()) {
-                                // 2. Selector Bar
-                                SelectorBar(uiState, viewModel::onEvent)
+                                // 2. Selector Bar (Pass isEditMode)
+                                SelectorBar(uiState, viewModel::onEvent, isEditMode)
 
                                 // 3. Grid
                                 PatchGrid(
@@ -166,7 +164,6 @@ fun MainScreenContent(
                                         .weight(1f)
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
-
                                 Spacer(Modifier.height(4.dp))
                             }
 
@@ -196,35 +193,28 @@ fun MainScreenContent(
 }
 
 @Composable
-fun SearchResultsOverlay(
-    uiState: MainUiState.Success,
-    onEvent: (MainEvent) -> Unit
-) {
+fun SearchResultsOverlay(uiState: MainUiState.Success, onEvent: (MainEvent) -> Unit) {
     Card(
         modifier = Modifier
-            .padding(top = 0.dp, start = 200.dp, end = 200.dp) // Centered under search bar approx
+            .padding(top = 0.dp, start = 200.dp, end = 200.dp)
             .fillMaxWidth(0.5f)
             .heightIn(max = 300.dp)
             .zIndex(100f),
         elevation = CardDefaults.cardElevation(8.dp),
-        colors = CardDefaults.cardColors(containerColor = com.set.patchchanger.ui.theme.DarkSurface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         LazyColumn {
             items(uiState.searchResults) { result ->
                 SearchResultItem(
                     result = result,
-                    onClick = { onEvent(MainEvent.GoToSearchResult(result)) }
-                )
+                    onClick = { onEvent(MainEvent.GoToSearchResult(result)) })
             }
         }
     }
 }
 
 @Composable
-fun SearchResultItem(
-    result: SearchResult,
-    onClick: () -> Unit
-) {
+fun SearchResultItem(result: SearchResult, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -239,7 +229,7 @@ fun SearchResultItem(
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = "Bank: ${result.bankName}  |  Page: ${result.pageName}",

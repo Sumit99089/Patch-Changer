@@ -34,20 +34,20 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -58,9 +58,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.graphics.toColorInt
@@ -72,45 +72,23 @@ import com.set.patchchanger.presentation.viewmodel.MainViewModel
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 import com.set.patchchanger.ui.theme.getModxColors
-import java.io.File
-import java.util.Date
 
-/**
- * Generic confirmation dialog
- */
 @Composable
-fun ConfirmationDialog(
-    title: String,
-    text: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
+fun ConfirmationDialog(title: String, text: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = title) },
-        text = { Text(text = text) },
+        title = { Text(title) },
+        text = { Text(text) },
         confirmButton = {
             Button(
-                onClick = {
-                    onConfirm()
-                    onDismiss()
-                },
+                onClick = { onConfirm(); onDismiss() },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) {
-                Text("OK")
-            }
+            ) { Text("OK") }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
 
-/**
- * Dialog to edit Bank and Page names
- */
 @Composable
 fun BankPageNameDialog(
     state: MainUiState.Success,
@@ -118,46 +96,31 @@ fun BankPageNameDialog(
     onSaveBank: (String) -> Unit,
     onSavePage: (String) -> Unit
 ) {
-    var bankName by remember { mutableStateOf(state.patchData.bankNames[state.settings.currentBankIndex]) }
-    var pageName by remember { mutableStateOf(state.patchData.pageNames[state.settings.currentPageIndex]) }
-
+    var bankName by remember { mutableStateOf(state.patchData.bankNames.getOrElse(state.settings.currentBankIndex) { "User" }) }
+    var pageName by remember { mutableStateOf(state.patchData.pageNames.getOrElse(state.settings.currentPageIndex) { "Page" }) }
     Dialog(onDismissRequest = onDismiss) {
-        Card(shape = RoundedCornerShape(8.dp)) {
-            Column(
-                Modifier
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Text("Edit Bank/Page Names", style = MaterialTheme.typography.titleLarge)
+        Card(
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Edit Names", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(16.dp))
-
                 OutlinedTextField(
                     value = bankName,
                     onValueChange = { bankName = it },
-                    label = { Text("Bank Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    label = { Text("Bank Name") })
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = pageName,
                     onValueChange = { pageName = it },
-                    label = { Text("Page Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    label = { Text("Page Name") })
                 Spacer(Modifier.height(16.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
-                    Spacer(Modifier.width(8.dp))
-                    Button(onClick = {
-                        onSaveBank(bankName)
-                        onSavePage(pageName)
-                        onDismiss()
-                    }) {
-                        Text("Save Changes")
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Button(onClick = { onSaveBank(bankName); onSavePage(pageName); onDismiss() }) {
+                        Text(
+                            "Save"
+                        )
                     }
                 }
             }
@@ -165,9 +128,6 @@ fun BankPageNameDialog(
     }
 }
 
-/**
- * Dialog to edit a Sample Pad (S1-S4)
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditSampleDialog(
@@ -179,259 +139,80 @@ fun EditSampleDialog(
     onClearAudio: () -> Unit,
     onEditColor: () -> Unit
 ) {
-    var name by remember(sample.name) { mutableStateOf(sample.name) }
-    var volume by remember(sample.volume) { mutableFloatStateOf(sample.volume.toFloat()) }
-    var loop by remember(sample.loop) { mutableStateOf(sample.loop) }
-    val buttonColor = try {
-        Color(sample.color.toColorInt())
-    } catch (e: Exception) {
-        MaterialTheme.colorScheme.primary
-    }
-
+    var name by remember { mutableStateOf(sample.name) }
+    var volume by remember { mutableFloatStateOf(sample.volume.toFloat()) }
+    var loop by remember { mutableStateOf(sample.loop) }
     Dialog(onDismissRequest = onDismiss) {
-        Card(shape = RoundedCornerShape(8.dp)) {
-            Column(
-                Modifier
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Text("Edit Sample: $name", style = MaterialTheme.typography.titleLarge)
+        Card(
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(Modifier
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState())) {
+                Text("Edit Sample", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(16.dp))
-
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Button Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(16.dp))
-
-                Text("Audio Source", fontWeight = FontWeight.Bold)
-                Text(
-                    "Current: ${sample.sourceName ?: "None"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    Button(onClick = onLoadFile) { Text("Load New File") }
-                    Button(onClick = onSelectFromLibrary) { Text("Select from Library") }
-                }
-                Spacer(Modifier.height(16.dp))
-
-                Text("Button Color", fontWeight = FontWeight.Bold)
-                Button(
-                    onClick = onEditColor,
-                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Change Color")
-                }
-                Spacer(Modifier.height(16.dp))
-
-                Text("Volume: ${volume.toInt()}", fontWeight = FontWeight.Bold)
-                Slider(
-                    value = volume,
-                    onValueChange = { volume = it },
-                    valueRange = 0f..100f,
-                    steps = 99
-                )
+                    label = { Text("Name") })
                 Spacer(Modifier.height(8.dp))
-
+                Row {
+                    Button(onClick = onLoadFile, Modifier.weight(1f)) { Text("File") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = onSelectFromLibrary, Modifier.weight(1f)) { Text("Lib") }
+                }
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = onEditColor, Modifier.fillMaxWidth()) { Text("Color") }
+                Spacer(Modifier.height(8.dp))
+                Text("Vol: ${volume.toInt()}")
+                Slider(value = volume, onValueChange = { volume = it }, valueRange = 0f..100f)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = loop, onCheckedChange = { loop = it })
-                    Text("Loop Playback")
+                    Text("Loop")
                 }
                 Spacer(Modifier.height(16.dp))
-
                 Button(
                     onClick = onClearAudio,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Clear Audio & Reset Name")
-                }
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Clear") }
                 Spacer(Modifier.height(16.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
-                    Spacer(Modifier.width(8.dp))
-                    Button(onClick = {
-                        onSave(
-                            sample.copy(
-                                name = name,
-                                volume = volume.toInt(),
-                                loop = loop
-                            )
+                Button(onClick = {
+                    onSave(
+                        sample.copy(
+                            name = name,
+                            volume = volume.toInt(),
+                            loop = loop
                         )
-                        onDismiss()
-                    }) {
-                        Text("OK")
-                    }
-                }
+                    ); onDismiss()
+                }) { Text("OK") }
             }
         }
     }
 }
 
-/**
- * Dialog to select a color from a grid
- */
 @Composable
-fun ColorPickerDialog(
-    onDismiss: () -> Unit,
-    onColorSelected: (String) -> Unit
-) {
+fun ColorPickerDialog(onDismiss: () -> Unit, onColorSelected: (String) -> Unit) {
     val colors = getModxColors()
-
     Dialog(onDismissRequest = onDismiss) {
-        Card(shape = RoundedCornerShape(8.dp)) {
-            Column(
-                Modifier
-                    .padding(16.dp)
-            ) {
+        Card(
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(Modifier.padding(16.dp)) {
                 Text("Select Color", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(16.dp))
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(4),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 400.dp)
+                    modifier = Modifier.heightIn(max = 400.dp)
                 ) {
-                    items(colors) { color ->
+                    items(colors) { c ->
                         Box(
-                            modifier = Modifier
+                            Modifier
                                 .padding(4.dp)
                                 .aspectRatio(1f)
-                                .background(
-                                    Color(color.hex.toColorInt()),
-                                    CircleShape
-                                )
-                                .clickable { onColorSelected(color.hex) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            // Optional: Show color name
-                        }
-                    }
-                }
-                Spacer(Modifier.height(16.dp))
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Cancel")
-                }
-            }
-        }
-    }
-}
-
-/**
- * Dialog to select audio from the library
- */
-@Composable
-fun AudioLibraryDialog(
-    library: List<AudioLibraryItem>,
-    onDismiss: () -> Unit,
-    onSelect: (AudioLibraryItem) -> Unit,
-    onDelete: (AudioLibraryItem) -> Unit,
-    onAddFile: () -> Unit
-) {
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedItem by remember { mutableStateOf<AudioLibraryItem?>(null) }
-    // remember(library, searchQuery) ensures efficient filtering only when inputs change
-    val filteredList = remember(library, searchQuery) {
-        library.filter { it.name.contains(searchQuery, ignoreCase = true) }
-    }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxHeight(0.8f)) {
-            Column(
-                Modifier.padding(16.dp)
-            ) {
-                Text("Select Audio from Library", style = MaterialTheme.typography.titleLarge)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    label = { Text("Search by name...") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
-                ) {
-                    if (filteredList.isEmpty()) {
-                        item {
-                            Text(
-                                "No items found",
-                                modifier = Modifier.padding(16.dp),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-
-                    items(filteredList, key = { it.name }) { item ->
-                        val isSelected = selectedItem == item
-                        // Use Surface for proper click handling and background
-                        Surface(
-                            onClick = { selectedItem = item },
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column {
-                                Text(
-                                    text = item.name,
-                                    modifier = Modifier.padding(
-                                        horizontal = 16.dp,
-                                        vertical = 12.dp
-                                    ),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                )
-                                HorizontalDivider(
-                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                    thickness = 1.dp
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(onClick = onAddFile) { Text("Add File...") }
-                    Button(
-                        onClick = { selectedItem?.let { onDelete(it); selectedItem = null } },
-                        enabled = selectedItem != null,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text("Delete Selected")
-                    }
-                }
-                Spacer(Modifier.height(16.dp))
-                Row(
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = { selectedItem?.let { onSelect(it); onDismiss() } },
-                        enabled = selectedItem != null
-                    ) {
-                        Text("OK")
+                                .background(Color(c.hex.toColorInt()), CircleShape)
+                                .clickable { onColorSelected(c.hex) })
                     }
                 }
             }
@@ -439,222 +220,6 @@ fun AudioLibraryDialog(
     }
 }
 
-/**
- * Dialog to edit a Patch Slot (the main grid item)
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EditSlotDialog(
-    slot: PatchSlot,
-    samples: List<SamplePad>,
-    onDismiss: () -> Unit,
-    onSave: (PatchSlot) -> Unit,
-    onCopy: () -> Unit,
-    onPaste: () -> Unit,
-    onSwap: () -> Unit,
-    onClear: () -> Unit,
-    onShowPerformanceBrowser: () -> Unit // Added
-) {
-    var name by remember(slot.name) { mutableStateOf(slot.name) }
-    var displayNameType by remember(slot.displayNameType) { mutableStateOf(slot.displayNameType) }
-    var assignedSample by remember(slot.assignedSample) { mutableIntStateOf(slot.assignedSample) }
-    var colorHex by remember(slot.color) { mutableStateOf(slot.color) }
-    var showColorPicker by remember { mutableStateOf(false) }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(shape = RoundedCornerShape(8.dp)) {
-            Column(
-                Modifier
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Text(
-                    "Edit Slot: ${slot.getDisplayName()}",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Spacer(Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Slot Custom Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-
-                // --- FIX 1: Radio Button Layout ---
-                Text("Display on Main Grid:", fontWeight = FontWeight.Bold)
-                Column(Modifier.padding(top = 4.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { displayNameType = DisplayNameType.PERFORMANCE }
-                    ) {
-                        RadioButton(
-                            selected = displayNameType == DisplayNameType.PERFORMANCE,
-                            onClick = { displayNameType = DisplayNameType.PERFORMANCE })
-                        Text("Performance Name")
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { displayNameType = DisplayNameType.CUSTOM }
-                    ) {
-                        RadioButton(
-                            selected = displayNameType == DisplayNameType.CUSTOM,
-                            onClick = { displayNameType = DisplayNameType.CUSTOM })
-                        Text("Custom")
-                    }
-                }
-                Spacer(Modifier.height(16.dp))
-
-                // Assign Performance
-                Text("Assigned Performance", fontWeight = FontWeight.Bold)
-                // Updated this section
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = slot.performanceName,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Performance") },
-                        modifier = Modifier.weight(1f),
-                        enabled = false // Make it look disabled but readable
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Button(onClick = onShowPerformanceBrowser) {
-                        Text("Select")
-                    }
-                }
-                Spacer(Modifier.height(16.dp))
-
-                // Assign Sample Pad
-                Text("Assign Sample Pad", fontWeight = FontWeight.Bold)
-                var sampleDropdownExpanded by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(
-                    expanded = sampleDropdownExpanded,
-                    onExpandedChange = { sampleDropdownExpanded = !sampleDropdownExpanded },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = samples.find { it.id == assignedSample }?.name ?: "None",
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = sampleDropdownExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(
-                                type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
-                                enabled = true
-                            )
-                    )
-                    ExposedDropdownMenu(
-                        expanded = sampleDropdownExpanded,
-                        onDismissRequest = { sampleDropdownExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("None") },
-                            onClick = {
-                                assignedSample = -1
-                                sampleDropdownExpanded = false
-                            }
-                        )
-                        samples.forEach { sample ->
-                            DropdownMenuItem(
-                                text = { Text(sample.name) },
-                                onClick = {
-                                    assignedSample = sample.id
-                                    sampleDropdownExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(16.dp))
-
-                // Slot Actions
-                Text("Slot Actions", fontWeight = FontWeight.Bold)
-                // --- FIX 2: Button Layout ---
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { showColorPicker = true },
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Color") }
-                    Button(
-                        onClick = { onCopy(); onDismiss() },
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Copy") }
-                }
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { onPaste(); onDismiss() },
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Paste") }
-                    Button(
-                        onClick = { onSwap(); onDismiss() },
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Swap") }
-                }
-                Button(
-                    onClick = { onClear(); onDismiss() },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                ) {
-                    Text("Clear")
-                }
-                Spacer(Modifier.height(16.dp))
-
-                // Save/Cancel
-                Row(
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
-                    Spacer(Modifier.width(8.dp))
-                    Button(onClick = {
-                        onSave(
-                            slot.copy(
-                                name = name,
-                                displayNameType = displayNameType,
-                                assignedSample = assignedSample,
-                                color = colorHex
-                                // Performance data is saved separately by SelectPerformance event
-                            )
-                        )
-                        onDismiss()
-                    }) {
-                        Text("Save Changes")
-                    }
-                }
-            }
-        }
-    }
-
-    if (showColorPicker) {
-        ColorPickerDialog(
-            onDismiss = { },
-            onColorSelected = { colorHex = it }
-        )
-    }
-}
-
-/**
- * Dialog to select another slot to swap with
- */
 @Composable
 fun SwapDialog(
     currentPageSlots: List<PatchSlot>,
@@ -687,24 +252,24 @@ fun SwapDialog(
                         }
                         Card(
                             modifier = Modifier
-                                .aspectRatio(1.618f)
+                                .aspectRatio(1.5f)
                                 .clickable { onSelectSlot(slot) },
                             colors = CardDefaults.cardColors(containerColor = bgColor),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
-                            shape = RoundedCornerShape(8.dp)
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))
                         ) {
                             Box(
                                 Modifier
                                     .fillMaxSize()
-                                    .padding(4.dp), contentAlignment = Alignment.Center
+                                    .padding(4.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = slot.getDisplayName(),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    slot.getDisplayName(),
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = Color.White,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(4.dp)
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -714,398 +279,487 @@ fun SwapDialog(
                 TextButton(
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Cancel")
-                }
+                ) { Text("Cancel") }
             }
         }
     }
 }
 
-/**
- * New Dialog for browsing and selecting performances
- */
+// --- MASTER EDIT SLOT DIALOG ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PerformanceBrowserDialog(
+fun EditSlotDialog(
+    slot: PatchSlot,
     uiState: MainUiState.Success,
-    onEvent: (MainEvent) -> Unit
+    onEvent: (MainEvent) -> Unit,
+    onDismiss: () -> Unit
 ) {
+    var name by remember(slot.name) { mutableStateOf(slot.name) }
+    var displayNameType by remember(slot.displayNameType) { mutableStateOf(slot.displayNameType) }
+    var assignedSample by remember(slot.assignedSample) { mutableIntStateOf(slot.assignedSample) }
+    var slotColorHex by remember(slot.color) { mutableStateOf(slot.color) } // Local color state
+
+    // Local state for Color Picker visibility
+    var showColorPicker by remember { mutableStateOf(false) }
+
+    // Performance Browser State
+    var perfCategory by remember { mutableStateOf("For Montage (Single)") }
+    var perfBankIndex by remember { mutableIntStateOf(0) }
+    var perfSearch by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        onEvent(MainEvent.ShowPerformanceBrowser(slot)); onEvent(
+        MainEvent.SelectPerformanceCategory(
+            perfCategory
+        )
+    )
+    }
+    LaunchedEffect(perfCategory) {
+        onEvent(MainEvent.SelectPerformanceCategory(perfCategory)); perfBankIndex = 0
+    }
+    LaunchedEffect(perfCategory, perfBankIndex) {
+        onEvent(
+            MainEvent.SelectPerformanceBank(
+                perfBankIndex
+            )
+        )
+    }
+
     Dialog(
-        onDismissRequest = { onEvent(MainEvent.HidePerformanceBrowser) },
-        properties = DialogProperties(usePlatformDefaultWidth = false) // Fullscreen-style dialog
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Card(
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(vertical = 16.dp, horizontal = 8.dp) // Add padding
-        ) {
-            Column(
-                Modifier
-                    .fillMaxSize()
+        Box(contentAlignment = Alignment.Center) {
+            // Main Edit Modal
+            Card(
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .fillMaxHeight(0.9f)
                     .padding(16.dp)
             ) {
-                Text("Performance Browser", style = MaterialTheme.typography.titleLarge)
-                Spacer(Modifier.height(16.dp))
-
-                // --- Category Dropdown ---
-                var categoryExpanded by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(
-                    expanded = categoryExpanded,
-                    onExpandedChange = { categoryExpanded = !categoryExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = uiState.performanceSelectedCategory ?: "Select Category...",
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(
-                                type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
-                                enabled = true
-                            )
-                    )
-                    ExposedDropdownMenu(
-                        expanded = categoryExpanded,
-                        onDismissRequest = { categoryExpanded = false },
-                        modifier = Modifier.heightIn(max = 300.dp) // Limit height
+                Column(Modifier.padding(16.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        uiState.performanceCategories.forEach { category ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        category,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                },
-                                onClick = {
-                                    onEvent(MainEvent.SelectPerformanceCategory(category))
-                                    categoryExpanded = false
-                                }
+                        Text(
+                            "Edit Slot: ${slot.getSlotNumber()}",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        IconButton(onClick = onDismiss) { Text("✕") }
+                    }
+                    HorizontalDivider()
+
+                    Row(Modifier
+                        .weight(1f)
+                        .padding(top = 16.dp)) {
+                        // LEFT: Settings
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                                .padding(end = 16.dp)
+                        ) {
+                            Text(
+                                "Name",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            OutlinedTextField(
+                                value = name,
+                                onValueChange = { name = it },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(Modifier.height(16.dp))
+                            Text("Display", fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = displayNameType == DisplayNameType.PERFORMANCE,
+                                    onClick = { displayNameType = DisplayNameType.PERFORMANCE })
+                                Text("Perf Name", fontSize = 14.sp)
+                                Spacer(Modifier.width(16.dp))
+                                RadioButton(
+                                    selected = displayNameType == DisplayNameType.CUSTOM,
+                                    onClick = { displayNameType = DisplayNameType.CUSTOM })
+                                Text("Custom", fontSize = 14.sp)
+                            }
+
+                            Spacer(Modifier.height(16.dp))
+                            Text("Performance", fontWeight = FontWeight.Bold)
+                            val displayPerf =
+                                uiState.slotToEditColor?.performanceName ?: slot.performanceName
+                            OutlinedTextField(
+                                value = displayPerf,
+                                onValueChange = {},
+                                readOnly = true,
+                                enabled = false,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(Modifier.height(16.dp))
+                            Text("Assign Sample", fontWeight = FontWeight.Bold)
+                            var sampleExpanded by remember { mutableStateOf(false) }
+                            Box {
+                                OutlinedTextField(
+                                    value = uiState.samples.find { it.id == assignedSample }?.name
+                                        ?: "None",
+                                    onValueChange = {}, readOnly = true,
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(
+                                            expanded = sampleExpanded
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { sampleExpanded = true }
+                                )
+                                DropdownMenu(
+                                    expanded = sampleExpanded,
+                                    onDismissRequest = { sampleExpanded = false }) {
+                                    DropdownMenuItem(
+                                        text = { Text("None") },
+                                        onClick = { assignedSample = -1; sampleExpanded = false })
+                                    uiState.samples.forEach { s ->
+                                        DropdownMenuItem(
+                                            text = { Text(s.name) },
+                                            onClick = {
+                                                assignedSample = s.id; sampleExpanded = false
+                                            })
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(24.dp))
+                            Text("Actions", fontWeight = FontWeight.Bold)
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = { showColorPicker = true },
+                                    Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = try {
+                                            Color(slotColorHex.toColorInt())
+                                        } catch (e: Exception) {
+                                            MaterialTheme.colorScheme.primary
+                                        }
+                                    )
+                                ) { Text("Color") }
+                                Button(
+                                    onClick = { onEvent(MainEvent.CopySlot(slot)); onDismiss() },
+                                    Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                                ) { Text("Copy") }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = { onEvent(MainEvent.ShowPasteConfirmDialog(slot)) },
+                                    Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                                ) { Text("Paste") }
+                                Button(
+                                    onClick = { onEvent(MainEvent.ShowSwapDialog(slot)) },
+                                    Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                                ) { Text("Swap") }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { onEvent(MainEvent.ShowClearConfirmDialog(slot)) },
+                                Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) { Text("Clear") }
+                        }
+
+                        // RIGHT: Browser
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outlineVariant,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(12.dp)
+                        ) {
+                            Text("Browser", fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
+
+                            var catExpanded by remember { mutableStateOf(false) }
+                            Box {
+                                OutlinedTextField(
+                                    value = perfCategory,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = catExpanded)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { catExpanded = true })
+                                DropdownMenu(
+                                    expanded = catExpanded,
+                                    onDismissRequest = { catExpanded = false }) {
+                                    uiState.performanceCategories.forEach { cat ->
+                                        DropdownMenuItem(
+                                            text = { Text(cat) },
+                                            onClick = { perfCategory = cat; catExpanded = false })
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(4.dp))
+                            var bankExpanded by remember { mutableStateOf(false) }
+                            Box {
+                                val bankName =
+                                    uiState.performanceBanks.getOrNull(perfBankIndex)?.name
+                                        ?: "Select Bank"
+                                OutlinedTextField(
+                                    value = bankName,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = bankExpanded)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { bankExpanded = true })
+                                DropdownMenu(
+                                    expanded = bankExpanded,
+                                    onDismissRequest = { bankExpanded = false }) {
+                                    uiState.performanceBanks.forEachIndexed { idx, bank ->
+                                        DropdownMenuItem(
+                                            text = { Text(bank.name) },
+                                            onClick = { perfBankIndex = idx; bankExpanded = false })
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = perfSearch,
+                                onValueChange = { perfSearch = it },
+                                placeholder = { Text("Search...") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+                            val filteredPerfs =
+                                uiState.performances.filter { it.name.contains(perfSearch, true) }
+                            LazyColumn(
+                                Modifier
+                                    .weight(1f)
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant,
+                                        RoundedCornerShape(4.dp)
+                                    )
+                            ) {
+                                items(filteredPerfs) { perf ->
+                                    val isSelected =
+                                        uiState.slotToEditColor?.performanceName == perf.name
+                                    Text(
+                                        text = perf.name,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { onEvent(MainEvent.SelectPerformance(perf)) }
+                                            .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                            .padding(8.dp),
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
                         }
                     }
-                }
 
-                Spacer(Modifier.height(8.dp))
+                    HorizontalDivider(Modifier.padding(vertical = 16.dp))
 
-                // --- Bank Dropdown ---
-                var bankExpanded by remember { mutableStateOf(false) }
-                val selectedBankName =
-                    if (uiState.performanceSelectedBankIndex == -1) "Select Bank..." else uiState.performanceBanks.getOrNull(
-                        uiState.performanceSelectedBankIndex
-                    )?.name
-                ExposedDropdownMenuBox(
-                    expanded = bankExpanded,
-                    onExpandedChange = { bankExpanded = !bankExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = selectedBankName ?: "Select Bank...",
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = bankExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(
-                                type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
-                                enabled = true
-                            ),
-                        enabled = uiState.performanceSelectedCategory != null
-                    )
-                    ExposedDropdownMenu(
-                        expanded = bankExpanded,
-                        onDismissRequest = { bankExpanded = false },
-                        modifier = Modifier.heightIn(max = 300.dp) // Limit height
-                    ) {
-                        uiState.performanceBanks.forEachIndexed { index, bank ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        bank.name,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                },
-                                onClick = {
-                                    onEvent(MainEvent.SelectPerformanceBank(index))
-                                    bankExpanded = false
-                                }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = onDismiss) { Text("Cancel") }
+                        Spacer(Modifier.width(8.dp))
+                        Button(onClick = {
+                            val finalSlot = slot.copy(
+                                name = name,
+                                displayNameType = displayNameType,
+                                assignedSample = assignedSample,
+                                color = slotColorHex,
+                                performanceName = uiState.slotToEditColor?.performanceName
+                                    ?: slot.performanceName,
+                                msb = uiState.slotToEditColor?.msb ?: slot.msb,
+                                lsb = uiState.slotToEditColor?.lsb ?: slot.lsb,
+                                pc = uiState.slotToEditColor?.pc ?: slot.pc
                             )
-                        }
+                            onEvent(MainEvent.UpdateSlot(finalSlot))
+                            onDismiss()
+                        }) { Text("Save Changes") }
                     }
                 }
+            }
 
+            // Stacked Color Picker Modal
+            if (showColorPicker) {
+                ColorPickerDialog(
+                    onDismiss = { showColorPicker = false },
+                    onColorSelected = { hex -> slotColorHex = hex; showColorPicker = false }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AudioLibraryDialog(
+    library: List<AudioLibraryItem>,
+    onDismiss: () -> Unit,
+    onSelect: (AudioLibraryItem) -> Unit,
+    onDelete: (AudioLibraryItem) -> Unit,
+    onAddFile: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedItem by remember { mutableStateOf<AudioLibraryItem?>(null) }
+    val filteredList = remember(library, searchQuery) {
+        library.filter {
+            it.name.contains(
+                searchQuery,
+                ignoreCase = true
+            )
+        }
+    }
+    Dialog(onDismissRequest = onDismiss) {
+        Card(shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxHeight(0.8f)) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Select Audio", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(8.dp))
-
-                // --- Search Input ---
                 OutlinedTextField(
-                    value = uiState.performanceSearchQuery,
-                    onValueChange = { onEvent(MainEvent.UpdatePerformanceSearch(it)) },
-                    label = { Text("Search performances...") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = uiState.performanceSelectedBankIndex != -1,
-                    singleLine = true
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text("Search") },
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
-
-                // --- Performance List ---
-                val filteredPerformances = uiState.performances.filter {
-                    it.name.contains(uiState.performanceSearchQuery, ignoreCase = true)
-                }
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
-                ) {
-                    if (uiState.performanceSelectedBankIndex == -1) {
-                        item {
-                            Text(
-                                "Please select a bank to see performances.",
-                                modifier = Modifier.padding(16.dp),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                            )
-                        }
-                    } else if (filteredPerformances.isEmpty()) {
-                        item {
-                            Text(
-                                if (uiState.performanceSearchQuery.isNotEmpty()) "No results found." else "No performances in this bank.",
-                                modifier = Modifier.padding(16.dp),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                            )
-                        }
-                    }
-                    items(filteredPerformances) { performance ->
+                LazyColumn(Modifier
+                    .weight(1f)
+                    .border(1.dp, MaterialTheme.colorScheme.outline)) {
+                    items(filteredList) { item ->
                         Text(
-                            text = performance.name,
+                            item.name,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onEvent(MainEvent.SelectPerformance(performance)) }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                                .clickable { selectedItem = item }
+                                .background(if (selectedItem == item) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                                .padding(16.dp)
                         )
                     }
                 }
-
-                Spacer(Modifier.height(16.dp))
-                // --- Cancel Button ---
-                TextButton(
-                    onClick = { onEvent(MainEvent.HidePerformanceBrowser) },
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Cancel")
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Button(onClick = onAddFile) { Text("Add File") }
+                    Button(
+                        onClick = { selectedItem?.let { onDelete(it); selectedItem = null } },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) { Text("Delete") }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Button(onClick = { selectedItem?.let { onSelect(it); onDismiss() } }) { Text("OK") }
                 }
             }
         }
     }
 }
 
-/**
- * File Loading Dialog
- */
-@Composable
-fun LoadFileDialog(
-    files: List<File>,
-    onDismiss: () -> Unit,
-    onFileSelected: (File) -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.7f)
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Select Backup File", style = MaterialTheme.typography.titleLarge)
-                Text(
-                    "Location: Documents/PatchChanger/",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-                Spacer(Modifier.height(16.dp))
-
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
-                ) {
-                    if (files.isEmpty()) {
-                        item {
-                            Text("No files found", modifier = Modifier.padding(16.dp))
-                        }
-                    }
-                    items(files) { file ->
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onFileSelected(file) }
-                                .padding(12.dp)
-                        ) {
-                            Text(file.name, fontWeight = FontWeight.Bold)
-                            Text(
-                                "Modified: ${Date(file.lastModified())}",
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                        HorizontalDivider()
-                    }
-                }
-
-                Spacer(Modifier.height(16.dp))
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Cancel")
-                }
-            }
-        }
-    }
-}
-
-/**
- * Main Controller for showing dialogs based on state
- */
 @Composable
 fun HandleDialogs(
     uiState: MainUiState.Success,
     viewModel: MainViewModel,
     libraryPickerLauncher: ActivityResultLauncher<String>
 ) {
-    if (uiState.showResetDialog) {
-        ConfirmationDialog(
-            title = "Reset All Data",
-            text = "Are you sure you want to reset all data, including the audio library?",
-            onConfirm = { viewModel.onEvent(MainEvent.ResetData) },
-            onDismiss = { viewModel.onEvent(MainEvent.ShowResetDialog(false)) }
-        )
-    }
-
-    if (uiState.showBankPageNameDialog) {
-        BankPageNameDialog(
-            state = uiState,
-            onDismiss = { viewModel.onEvent(MainEvent.ShowBankPageNameDialog(false)) },
-            onSaveBank = {
-                viewModel.onEvent(
-                    MainEvent.UpdateBankName(
-                        uiState.settings.currentBankIndex,
-                        it
-                    )
-                )
-            },
-            onSavePage = {
-                viewModel.onEvent(
-                    MainEvent.UpdatePageName(
-                        uiState.settings.currentPageIndex,
-                        it
-                    )
-                )
-            }
-        )
-    }
-
+    if (uiState.showResetDialog) ConfirmationDialog(
+        "Reset All",
+        "Reset all data?",
+        { viewModel.onEvent(MainEvent.ResetData) },
+        { viewModel.onEvent(MainEvent.ShowResetDialog(false)) })
+    if (uiState.showBankPageNameDialog) BankPageNameDialog(
+        uiState,
+        { viewModel.onEvent(MainEvent.ShowBankPageNameDialog(false)) },
+        { viewModel.onEvent(MainEvent.UpdateBankName(uiState.settings.currentBankIndex, it)) },
+        { viewModel.onEvent(MainEvent.UpdatePageName(uiState.settings.currentPageIndex, it)) })
     uiState.editingSample?.let { sample ->
         EditSampleDialog(
-            sample = sample,
-            onDismiss = { viewModel.onEvent(MainEvent.ShowEditSampleDialog(null)) },
-            onSave = { viewModel.onEvent(MainEvent.UpdateSample(it)) },
-            onLoadFile = { viewModel.onEvent(MainEvent.LoadSampleFile) },
-            onSelectFromLibrary = {
-                viewModel.onEvent(
-                    MainEvent.ShowAudioLibrary(
-                        true,
-                        sample.id
-                    )
-                )
-            },
-            onClearAudio = { viewModel.onEvent(MainEvent.ClearSampleAudio(sample.id)) },
-            onEditColor = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(sample)) }
+            sample,
+            { viewModel.onEvent(MainEvent.ShowEditSampleDialog(null)) },
+            { viewModel.onEvent(MainEvent.UpdateSample(it)) },
+            { viewModel.onEvent(MainEvent.LoadSampleFile) },
+            { viewModel.onEvent(MainEvent.ShowAudioLibrary(true, sample.id)) },
+            { viewModel.onEvent(MainEvent.ClearSampleAudio(sample.id)) },
+            { viewModel.onEvent(MainEvent.ShowSampleColorDialog(sample)) }
         )
     }
-
-    if (uiState.showAudioLibrary) {
-        AudioLibraryDialog(
-            library = uiState.audioLibrary,
-            onDismiss = { viewModel.onEvent(MainEvent.ShowAudioLibrary(false)) },
-            onSelect = { viewModel.onEvent(MainEvent.SelectSampleFromLibrary(it)) },
-            onDelete = { viewModel.onEvent(MainEvent.DeleteFromAudioLibrary(it)) },
-            onAddFile = { libraryPickerLauncher.launch("audio/*") }
-        )
-    }
-
+    if (uiState.showAudioLibrary) AudioLibraryDialog(
+        uiState.audioLibrary,
+        { viewModel.onEvent(MainEvent.ShowAudioLibrary(false)) },
+        { viewModel.onEvent(MainEvent.SelectSampleFromLibrary(it)) },
+        { viewModel.onEvent(MainEvent.DeleteFromAudioLibrary(it)) },
+        { libraryPickerLauncher.launch("audio/*") })
     uiState.slotToPaste?.let { slot ->
         ConfirmationDialog(
-            title = "Confirm Paste",
-            text = "Paste over '${slot.getDisplayName()}'?",
-            onConfirm = { viewModel.onEvent(MainEvent.PasteSlot(slot)) },
-            onDismiss = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(null)) }
-        )
+            "Paste",
+            "Paste over '${slot.getDisplayName()}'?",
+            { viewModel.onEvent(MainEvent.PasteSlot(slot)) },
+            { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(null)) })
     }
-
     uiState.slotToClear?.let { slot ->
         ConfirmationDialog(
-            title = "Clear Slot",
-            text = "Are you sure you want to clear slot '${slot.getDisplayName()}'?",
-            onConfirm = { viewModel.onEvent(MainEvent.ClearSlot(slot)) },
-            onDismiss = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(null)) }
-        )
+            "Clear",
+            "Clear slot '${slot.getDisplayName()}'?",
+            { viewModel.onEvent(MainEvent.ClearSlot(slot)) },
+            { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(null)) })
     }
 
     uiState.slotToSwap?.let { slot ->
-        val currentPageSlots = uiState.patchData.banks.getOrNull(uiState.settings.currentBankIndex)
-            ?.pages?.getOrNull(uiState.settings.currentPageIndex)?.slots ?: emptyList()
-
+        val currentPageSlots =
+            uiState.patchData.banks.getOrNull(uiState.settings.currentBankIndex)?.pages?.getOrNull(
+                uiState.settings.currentPageIndex
+            )?.slots ?: emptyList()
         SwapDialog(
-            currentPageSlots = currentPageSlots,
-            sourceSlot = slot,
-            onDismiss = { viewModel.onEvent(MainEvent.ShowSwapDialog(null)) },
-            onSelectSlot = { targetSlot ->
-                viewModel.onEvent(
-                    MainEvent.SwapSlots(
-                        slot.id,
-                        targetSlot.id
-                    )
-                )
+            currentPageSlots,
+            slot,
+            { viewModel.onEvent(MainEvent.ShowSwapDialog(null)) },
+            { target: PatchSlot -> // FIXED: Added explicit type to solve error
+                viewModel.onEvent(MainEvent.SwapSlots(slot.id, target.id))
             }
         )
     }
 
     uiState.slotToEditColor?.let { slot ->
         EditSlotDialog(
-            slot = slot,
-            onDismiss = { viewModel.onEvent(MainEvent.ShowSlotColorDialog(null)) },
-            onSave = { viewModel.onEvent(MainEvent.UpdateSlot(it)) },
-            onCopy = { viewModel.onEvent(MainEvent.CopySlot(slot)) },
-            onPaste = { viewModel.onEvent(MainEvent.ShowPasteConfirmDialog(slot)) },
-            onSwap = { viewModel.onEvent(MainEvent.ShowSwapDialog(slot)) },
-            onClear = { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(slot)) },
-            samples = uiState.samples,
-            onShowPerformanceBrowser = { viewModel.onEvent(MainEvent.ShowPerformanceBrowser(slot)) }
-        )
+            slot,
+            uiState,
+            viewModel::onEvent,
+            { viewModel.onEvent(MainEvent.ShowSlotColorDialog(null)) })
     }
-
     uiState.sampleToEditColor?.let { sample ->
         ColorPickerDialog(
-            onDismiss = { viewModel.onEvent(MainEvent.ShowSampleColorDialog(null)) },
-            onColorSelected = { colorHex ->
-                viewModel.onEvent(MainEvent.UpdateSample(sample.copy(color = colorHex)))
-                viewModel.onEvent(MainEvent.ShowSampleColorDialog(null))
-            }
-        )
-    }
-
-    if (uiState.showPerformanceBrowser) {
-        PerformanceBrowserDialog(
-            uiState = uiState,
-            onEvent = viewModel::onEvent
-        )
+            {
+                viewModel.onEvent(
+                    MainEvent.ShowSampleColorDialog(
+                        null
+                    )
+                )
+            },
+            { color ->
+                viewModel.onEvent(MainEvent.UpdateSample(sample.copy(color = color))); viewModel.onEvent(
+                MainEvent.ShowSampleColorDialog(null)
+            )
+            })
     }
 }

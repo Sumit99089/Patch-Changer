@@ -1,6 +1,5 @@
 package com.set.patchchanger.domain.repository
 
-
 import android.net.Uri
 import com.set.patchchanger.domain.model.AudioLibraryItem
 import com.set.patchchanger.domain.model.SamplePad
@@ -8,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface SampleRepository {
     fun observeSamples(): Flow<List<SamplePad>>
+    fun observePlayingStates(): Flow<Set<Int>> // Added
     suspend fun getSamples(): List<SamplePad>
     suspend fun updateSample(sample: SamplePad)
     suspend fun clearSampleAudio(sampleId: Int)

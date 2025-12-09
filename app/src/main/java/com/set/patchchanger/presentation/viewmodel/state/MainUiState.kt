@@ -10,15 +10,13 @@ import com.set.patchchanger.domain.model.SamplePad
 import com.set.patchchanger.domain.model.SearchResult
 import com.set.patchchanger.domain.usecase.GetPerformancesUseCase
 
-/**
- * UI State for the main screen.
- */
 sealed class MainUiState {
     object Loading : MainUiState()
     data class Success(
         val patchData: PatchData,
         val settings: AppSettings,
         val samples: List<SamplePad>,
+        val playingSampleIds: Set<Int> = emptySet(), // Added for animation
         val midiState: MidiConnectionState,
         val audioLibrary: List<AudioLibraryItem>,
         // Search State
