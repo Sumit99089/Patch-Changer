@@ -104,20 +104,21 @@ fun BankPageNameDialog(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("Edit Names", style = MaterialTheme.typography.titleLarge)
-                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Edit Names",
+                    style = MaterialTheme.typography.titleLarge
+                ); Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     value = bankName,
                     onValueChange = { bankName = it },
-                    label = { Text("Bank Name") })
-                Spacer(Modifier.height(8.dp))
+                    label = { Text("Bank Name") }); Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = pageName,
                     onValueChange = { pageName = it },
-                    label = { Text("Page Name") })
-                Spacer(Modifier.height(16.dp))
+                    label = { Text("Page Name") }); Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    Button(onClick = { onSaveBank(bankName); onSavePage(pageName); onDismiss() }) {
+                    Button(
+                        onClick = { onSaveBank(bankName); onSavePage(pageName); onDismiss() }) {
                         Text(
                             "Save"
                         )
@@ -147,45 +148,51 @@ fun EditSampleDialog(
             shape = RoundedCornerShape(8.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
-            Column(Modifier
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState())) {
-                Text("Edit Sample", style = MaterialTheme.typography.titleLarge)
-                Spacer(Modifier.height(16.dp))
+            Column(
+                Modifier
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    "Edit Sample",
+                    style = MaterialTheme.typography.titleLarge
+                ); Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name") })
-                Spacer(Modifier.height(8.dp))
+                    label = { Text("Name") }); Spacer(Modifier.height(8.dp))
                 Row {
-                    Button(onClick = onLoadFile, Modifier.weight(1f)) { Text("File") }
-                    Spacer(Modifier.width(8.dp))
-                    Button(onClick = onSelectFromLibrary, Modifier.weight(1f)) { Text("Lib") }
+                    Button(onClick = onLoadFile, Modifier.weight(1f)) { Text("File") }; Spacer(
+                    Modifier.width(8.dp)
+                ); Button(onClick = onSelectFromLibrary, Modifier.weight(1f)) { Text("Lib") }
                 }
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = onEditColor, Modifier.fillMaxWidth()) { Text("Color") }
-                Spacer(Modifier.height(8.dp))
-                Text("Vol: ${volume.toInt()}")
-                Slider(value = volume, onValueChange = { volume = it }, valueRange = 0f..100f)
+                Spacer(Modifier.height(8.dp)); Button(
+                onClick = onEditColor,
+                Modifier.fillMaxWidth()
+            ) { Text("Color") }
+                Spacer(Modifier.height(8.dp)); Text("Vol: ${volume.toInt()}"); Slider(
+                value = volume,
+                onValueChange = { volume = it },
+                valueRange = 0f..100f
+            )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = loop, onCheckedChange = { loop = it })
-                    Text("Loop")
+                    Checkbox(
+                        checked = loop,
+                        onCheckedChange = { loop = it }); Text("Loop")
                 }
-                Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = onClearAudio,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Clear") }
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = {
-                    onSave(
-                        sample.copy(
-                            name = name,
-                            volume = volume.toInt(),
-                            loop = loop
-                        )
-                    ); onDismiss()
-                }) { Text("OK") }
+                Spacer(Modifier.height(16.dp)); Button(
+                onClick = onClearAudio,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) { Text("Clear") }
+                Spacer(Modifier.height(16.dp)); Button(onClick = {
+                onSave(
+                    sample.copy(
+                        name = name,
+                        volume = volume.toInt(),
+                        loop = loop
+                    )
+                ); onDismiss()
+            }) { Text("OK") }
             }
         }
     }
@@ -200,8 +207,10 @@ fun ColorPickerDialog(onDismiss: () -> Unit, onColorSelected: (String) -> Unit) 
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("Select Color", style = MaterialTheme.typography.titleLarge)
-                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Select Color",
+                    style = MaterialTheme.typography.titleLarge
+                ); Spacer(Modifier.height(16.dp))
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(4),
                     modifier = Modifier.heightIn(max = 400.dp)
@@ -233,8 +242,7 @@ fun SwapDialog(
                 Text(
                     "Swap \"${sourceSlot.getDisplayName()}\" with...",
                     style = MaterialTheme.typography.titleLarge
-                )
-                Spacer(Modifier.height(16.dp))
+                ); Spacer(Modifier.height(16.dp))
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(4),
                     contentPadding = PaddingValues(4.dp),
@@ -275,11 +283,10 @@ fun SwapDialog(
                         }
                     }
                 }
-                Spacer(Modifier.height(16.dp))
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
-                ) { Text("Cancel") }
+                Spacer(Modifier.height(16.dp)); TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.align(Alignment.End)
+            ) { Text("Cancel") }
             }
         }
     }
@@ -297,12 +304,9 @@ fun EditSlotDialog(
     var name by remember(slot.name) { mutableStateOf(slot.name) }
     var displayNameType by remember(slot.displayNameType) { mutableStateOf(slot.displayNameType) }
     var assignedSample by remember(slot.assignedSample) { mutableIntStateOf(slot.assignedSample) }
-    var slotColorHex by remember(slot.color) { mutableStateOf(slot.color) } // Local color state
-
-    // Local state for Color Picker visibility
+    var slotColorHex by remember(slot.color) { mutableStateOf(slot.color) }
     var showColorPicker by remember { mutableStateOf(false) }
 
-    // Performance Browser State
     var perfCategory by remember { mutableStateOf("For Montage (Single)") }
     var perfBankIndex by remember { mutableIntStateOf(0) }
     var perfSearch by remember { mutableStateOf("") }
@@ -330,7 +334,6 @@ fun EditSlotDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            // Main Edit Modal
             Card(
                 shape = RoundedCornerShape(8.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -353,9 +356,11 @@ fun EditSlotDialog(
                     }
                     HorizontalDivider()
 
-                    Row(Modifier
-                        .weight(1f)
-                        .padding(top = 16.dp)) {
+                    Row(
+                        Modifier
+                            .weight(1f)
+                            .padding(top = 16.dp)
+                    ) {
                         // LEFT: Settings
                         Column(
                             Modifier
@@ -373,22 +378,25 @@ fun EditSlotDialog(
                                 onValueChange = { name = it },
                                 modifier = Modifier.fillMaxWidth()
                             )
-
                             Spacer(Modifier.height(16.dp))
-                            Text("Display", fontWeight = FontWeight.Bold)
+
+                            Text("Display Mode", fontWeight = FontWeight.Bold)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 RadioButton(
                                     selected = displayNameType == DisplayNameType.PERFORMANCE,
-                                    onClick = { displayNameType = DisplayNameType.PERFORMANCE })
-                                Text("Perf Name", fontSize = 14.sp)
-                                Spacer(Modifier.width(16.dp))
+                                    onClick = {
+                                        displayNameType = DisplayNameType.PERFORMANCE
+                                    }); Text("Performance", fontSize = 13.sp)
+                                Spacer(Modifier.width(8.dp))
                                 RadioButton(
                                     selected = displayNameType == DisplayNameType.CUSTOM,
-                                    onClick = { displayNameType = DisplayNameType.CUSTOM })
-                                Text("Custom", fontSize = 14.sp)
+                                    onClick = {
+                                        displayNameType = DisplayNameType.CUSTOM
+                                    }); Text("Custom", fontSize = 13.sp)
                             }
-
                             Spacer(Modifier.height(16.dp))
+
+                            // Performance Display
                             Text("Performance", fontWeight = FontWeight.Bold)
                             val displayPerf =
                                 uiState.slotToEditColor?.performanceName ?: slot.performanceName
@@ -399,11 +407,12 @@ fun EditSlotDialog(
                                 enabled = false,
                                 modifier = Modifier.fillMaxWidth()
                             )
-
                             Spacer(Modifier.height(16.dp))
-                            Text("Assign Sample", fontWeight = FontWeight.Bold)
+
+                            // --- ASSIGN SAMPLE PAD FEATURE (RESTORED) ---
+                            Text("Assign Sample Pad", fontWeight = FontWeight.Bold)
                             var sampleExpanded by remember { mutableStateOf(false) }
-                            Box {
+                            Box(modifier = Modifier.fillMaxWidth()) {
                                 OutlinedTextField(
                                     value = uiState.samples.find { it.id == assignedSample }?.name
                                         ?: "None",
@@ -417,6 +426,12 @@ fun EditSlotDialog(
                                         .fillMaxWidth()
                                         .clickable { sampleExpanded = true }
                                 )
+                                // Transparent clickable box to capture clicks over the text field
+                                Box(
+                                    Modifier
+                                        .matchParentSize()
+                                        .clickable { sampleExpanded = true })
+
                                 DropdownMenu(
                                     expanded = sampleExpanded,
                                     onDismissRequest = { sampleExpanded = false }) {
@@ -432,8 +447,9 @@ fun EditSlotDialog(
                                     }
                                 }
                             }
-
                             Spacer(Modifier.height(24.dp))
+
+                            // Actions
                             Text("Actions", fontWeight = FontWeight.Bold)
                             Row(
                                 Modifier.fillMaxWidth(),
@@ -493,7 +509,6 @@ fun EditSlotDialog(
                         ) {
                             Text("Browser", fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(8.dp))
-
                             var catExpanded by remember { mutableStateOf(false) }
                             Box {
                                 OutlinedTextField(
@@ -506,6 +521,10 @@ fun EditSlotDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { catExpanded = true })
+                                Box(
+                                    Modifier
+                                        .matchParentSize()
+                                        .clickable { catExpanded = true })
                                 DropdownMenu(
                                     expanded = catExpanded,
                                     onDismissRequest = { catExpanded = false }) {
@@ -516,7 +535,6 @@ fun EditSlotDialog(
                                     }
                                 }
                             }
-
                             Spacer(Modifier.height(4.dp))
                             var bankExpanded by remember { mutableStateOf(false) }
                             Box {
@@ -533,6 +551,10 @@ fun EditSlotDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { bankExpanded = true })
+                                Box(
+                                    Modifier
+                                        .matchParentSize()
+                                        .clickable { bankExpanded = true })
                                 DropdownMenu(
                                     expanded = bankExpanded,
                                     onDismissRequest = { bankExpanded = false }) {
@@ -543,7 +565,6 @@ fun EditSlotDialog(
                                     }
                                 }
                             }
-
                             Spacer(Modifier.height(8.dp))
                             OutlinedTextField(
                                 value = perfSearch,
@@ -551,10 +572,7 @@ fun EditSlotDialog(
                                 placeholder = { Text("Search...") },
                                 modifier = Modifier.fillMaxWidth()
                             )
-
                             Spacer(Modifier.height(8.dp))
-                            val filteredPerfs =
-                                uiState.performances.filter { it.name.contains(perfSearch, true) }
                             LazyColumn(
                                 Modifier
                                     .weight(1f)
@@ -563,7 +581,12 @@ fun EditSlotDialog(
                                         RoundedCornerShape(4.dp)
                                     )
                             ) {
-                                items(filteredPerfs) { perf ->
+                                items(uiState.performances.filter {
+                                    it.name.contains(
+                                        perfSearch,
+                                        true
+                                    )
+                                }) { perf ->
                                     val isSelected =
                                         uiState.slotToEditColor?.performanceName == perf.name
                                     Text(
@@ -579,9 +602,7 @@ fun EditSlotDialog(
                             }
                         }
                     }
-
                     HorizontalDivider(Modifier.padding(vertical = 16.dp))
-
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = onDismiss) { Text("Cancel") }
                         Spacer(Modifier.width(8.dp))
@@ -597,20 +618,14 @@ fun EditSlotDialog(
                                 lsb = uiState.slotToEditColor?.lsb ?: slot.lsb,
                                 pc = uiState.slotToEditColor?.pc ?: slot.pc
                             )
-                            onEvent(MainEvent.UpdateSlot(finalSlot))
-                            onDismiss()
+                            onEvent(MainEvent.UpdateSlot(finalSlot)); onDismiss()
                         }) { Text("Save Changes") }
                     }
                 }
             }
-
-            // Stacked Color Picker Modal
-            if (showColorPicker) {
-                ColorPickerDialog(
-                    onDismiss = { showColorPicker = false },
-                    onColorSelected = { hex -> slotColorHex = hex; showColorPicker = false }
-                )
-            }
+            if (showColorPicker) ColorPickerDialog(
+                onDismiss = { showColorPicker = false },
+                onColorSelected = { hex -> slotColorHex = hex; showColorPicker = false })
         }
     }
 }
@@ -636,18 +651,21 @@ fun AudioLibraryDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxHeight(0.8f)) {
             Column(Modifier.padding(16.dp)) {
-                Text("Select Audio", style = MaterialTheme.typography.titleLarge)
-                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Select Audio",
+                    style = MaterialTheme.typography.titleLarge
+                ); Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     label = { Text("Search") },
                     modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                LazyColumn(Modifier
-                    .weight(1f)
-                    .border(1.dp, MaterialTheme.colorScheme.outline)) {
+                ); Spacer(Modifier.height(8.dp))
+                LazyColumn(
+                    Modifier
+                        .weight(1f)
+                        .border(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
                     items(filteredList) { item ->
                         Text(
                             item.name,
@@ -660,17 +678,30 @@ fun AudioLibraryDialog(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Button(onClick = onAddFile) { Text("Add File") }
-                    Button(
-                        onClick = { selectedItem?.let { onDelete(it); selectedItem = null } },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) { Text("Delete") }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Button(onClick = onAddFile) { Text("Add File") }; Button(
+                    onClick = {
+                        selectedItem?.let {
+                            onDelete(
+                                it
+                            ); selectedItem = null
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Delete") }
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
-                    Button(onClick = { selectedItem?.let { onSelect(it); onDismiss() } }) { Text("OK") }
+                    TextButton(
+                        onClick = onDismiss
+                    ) { Text("Cancel") }; Button(onClick = { selectedItem?.let { onSelect(it); onDismiss() } }) {
+                    Text(
+                        "OK"
+                    )
+                }
                 }
             }
         }
@@ -701,8 +732,7 @@ fun HandleDialogs(
             { viewModel.onEvent(MainEvent.LoadSampleFile) },
             { viewModel.onEvent(MainEvent.ShowAudioLibrary(true, sample.id)) },
             { viewModel.onEvent(MainEvent.ClearSampleAudio(sample.id)) },
-            { viewModel.onEvent(MainEvent.ShowSampleColorDialog(sample)) }
-        )
+            { viewModel.onEvent(MainEvent.ShowSampleColorDialog(sample)) })
     }
     if (uiState.showAudioLibrary) AudioLibraryDialog(
         uiState.audioLibrary,
@@ -724,7 +754,6 @@ fun HandleDialogs(
             { viewModel.onEvent(MainEvent.ClearSlot(slot)) },
             { viewModel.onEvent(MainEvent.ShowClearConfirmDialog(null)) })
     }
-
     uiState.slotToSwap?.let { slot ->
         val currentPageSlots =
             uiState.patchData.banks.getOrNull(uiState.settings.currentBankIndex)?.pages?.getOrNull(
@@ -734,12 +763,8 @@ fun HandleDialogs(
             currentPageSlots,
             slot,
             { viewModel.onEvent(MainEvent.ShowSwapDialog(null)) },
-            { target: PatchSlot -> // FIXED: Added explicit type to solve error
-                viewModel.onEvent(MainEvent.SwapSlots(slot.id, target.id))
-            }
-        )
+            { target: PatchSlot -> viewModel.onEvent(MainEvent.SwapSlots(slot.id, target.id)) })
     }
-
     uiState.slotToEditColor?.let { slot ->
         EditSlotDialog(
             slot,

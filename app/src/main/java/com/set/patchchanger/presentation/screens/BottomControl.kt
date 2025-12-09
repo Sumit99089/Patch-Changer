@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -28,7 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
@@ -59,18 +59,17 @@ import com.set.patchchanger.ui.theme.SampleTeal
 fun BottomBar(
     uiState: MainUiState.Success,
     onEvent: (MainEvent) -> Unit,
-    isEditMode: Boolean,
-    onToggleFullscreen: () -> Unit
+    isEditMode: Boolean
 ) {
     val samples = uiState.samples
     val playingSamples = uiState.playingSampleIds
-    val backgroundColor = MaterialTheme.colorScheme.background // Adapts to theme
+    val backgroundColor = MaterialTheme.colorScheme.background
 
     Row(
         Modifier
             .fillMaxWidth()
-            .height(60.dp) // HTML min-height: 60px
-            .background(backgroundColor.copy(alpha = 0.9f)) // Slight transparency match
+            .height(60.dp)
+            .background(backgroundColor.copy(alpha = 0.9f))
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -125,8 +124,8 @@ fun BottomBar(
 
         // Right Controls
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ControlButton(Icons.Default.Palette) { onEvent(MainEvent.CycleTheme) } // Cycles theme!
-            ControlButton(Icons.Default.Fullscreen, onClick = onToggleFullscreen)
+            ControlButton(Icons.Default.Palette) { onEvent(MainEvent.CycleTheme) }
+            // Removed Fullscreen button
         }
     }
 }
@@ -163,7 +162,7 @@ fun ControlButton(icon: ImageVector, onClick: () -> Unit) {
             .size(48.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
             .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
-            .combinedClickable(onClick = onClick),
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -183,7 +182,6 @@ fun RowScope.SampleButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Precise HTML animation: 0% Green -> 50% Base -> 100% Green
     val animatedColor by animateColorAsState(
         targetValue = if (isPlaying) Color(0xFF39FF14) else baseColor,
         animationSpec = infiniteRepeatable(

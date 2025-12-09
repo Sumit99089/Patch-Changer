@@ -49,23 +49,20 @@ import com.set.patchchanger.ui.theme.PatchChangerTheme
 
 @Composable
 fun MainScreen(
-    viewModel: MainViewModel = hiltViewModel(),
-    onToggleFullscreen: () -> Unit
+    viewModel: MainViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentTheme = (uiState as? MainUiState.Success)?.settings?.theme ?: AppTheme.BLACK
 
     PatchChangerTheme(appTheme = currentTheme) {
-        // Pass current theme to content to ensure scaffold uses it
-        MainScreenContent(viewModel, uiState, onToggleFullscreen)
+        MainScreenContent(viewModel, uiState)
     }
 }
 
 @Composable
 fun MainScreenContent(
     viewModel: MainViewModel,
-    uiState: MainUiState,
-    onToggleFullscreen: () -> Unit
+    uiState: MainUiState
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var isEditMode by remember { mutableStateOf(false) }
@@ -108,7 +105,6 @@ fun MainScreenContent(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        // CRITICAL FIX: Use MaterialTheme.colorScheme.background to apply theme globally
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground
     ) { padding ->
@@ -116,7 +112,6 @@ fun MainScreenContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                // Double ensure background is applied
                 .background(MaterialTheme.colorScheme.background)
         ) {
             when (uiState) {
@@ -129,7 +124,7 @@ fun MainScreenContent(
 
                         Box(modifier = Modifier.weight(1f)) {
                             Column(Modifier.fillMaxSize()) {
-                                // 2. Selector Bar (Pass isEditMode)
+                                // 2. Selector Bar
                                 SelectorBar(uiState, viewModel::onEvent, isEditMode)
 
                                 // 3. Grid
@@ -167,17 +162,15 @@ fun MainScreenContent(
                                 Spacer(Modifier.height(4.dp))
                             }
 
-                            // Search Overlay
                             if (uiState.searchQuery.isNotBlank() && uiState.searchResults.isNotEmpty()) {
                                 SearchResultsOverlay(uiState, viewModel::onEvent)
                             }
                         }
 
-                        // 4. Bottom Bar
-                        BottomBar(uiState, viewModel::onEvent, isEditMode, onToggleFullscreen)
+                        // 4. Bottom Bar (No Fullscreen toggle passed)
+                        BottomBar(uiState, viewModel::onEvent, isEditMode)
                     }
 
-                    // Dialogs
                     HandleDialogs(uiState, viewModel, libraryPickerLauncher)
                 }
 
@@ -224,7 +217,7 @@ fun SearchResultItem(result: SearchResult, onClick: () -> Unit) {
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = result.slot.getDisplayName(),
+                result.slot.getDisplayName(),
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
@@ -232,7 +225,7 @@ fun SearchResultItem(result: SearchResult, onClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "Bank: ${result.bankName}  |  Page: ${result.pageName}",
+                "Bank: ${result.bankName}  |  Page: ${result.pageName}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
