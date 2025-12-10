@@ -76,7 +76,6 @@ class MainViewModel @Inject constructor(
     private val _internalState = MutableStateFlow(InternalState())
     private var copiedSlot: PatchSlot? = null
 
-    // Helper data class for combining flows
     private data class CombinedData(
         val patchData: PatchData,
         val settings: AppSettings,
@@ -86,7 +85,6 @@ class MainViewModel @Inject constructor(
         val library: List<AudioLibraryItem>
     )
 
-    // Split combine to avoid >5 argument error
     private val baseDataFlow = combine(
         patchRepository.observePatchData(),
         settingsRepository.observeSettings(),
@@ -177,7 +175,6 @@ class MainViewModel @Inject constructor(
                 is MainEvent.ResetTranspose -> updateTransposeUseCase.reset()
                 is MainEvent.UpdateMidiChannel -> settingsRepository.updateMidiChannel(event.channel)
 
-                // Theme Logic
                 is MainEvent.UpdateTheme -> settingsRepository.updateTheme(event.theme)
                 is MainEvent.CycleTheme -> {
                     val currentTheme = settingsRepository.getSettings().theme
@@ -325,6 +322,7 @@ class MainViewModel @Inject constructor(
                             editingSample = it.editingSample?.copy(
                                 audioFileName = fileName,
                                 sourceName = event.name,
+                                // UPDATES UI NAME IMMEDIATELY HERE
                                 name = event.name.substringBeforeLast('.')
                             )
                         )
@@ -404,7 +402,7 @@ class MainViewModel @Inject constructor(
                         pc = event.performance.pc,
                         performanceName = event.performance.name
                     )
-                    _internalState.update { it.copy(slotToEditColor = updatedSlot) } // Update dialog state preview
+                    _internalState.update { it.copy(slotToEditColor = updatedSlot) }
                 }
 
                 is MainEvent.UpdatePerformanceSearch -> _internalState.update {

@@ -178,7 +178,6 @@ fun PatchGrid(
                     .height(height)
                     .graphicsLayer { alpha = 0.8f; scaleX = 1.05f; scaleY = 1.05f }
             ) {
-                // Pass empty set for dragging visual (no blink while dragging)
                 PatchSlotCard(slot, emptySet(), isEditMode, false, false, Modifier.fillMaxSize())
             }
         }
@@ -249,11 +248,10 @@ fun PatchSlotCard(
         MaterialTheme.colorScheme.surfaceVariant
     }
 
-    // --- ANIMATION LOGIC ---
-    // 1. Setup infinite transition for blink
+    // 1. Animation for Blinking Border (Green)
     val infiniteTransition = rememberInfiniteTransition(label = "grid_blink")
     val blinkBorderColor by infiniteTransition.animateColor(
-        initialValue = Color.Transparent, // Starts subtle
+        initialValue = Color.Transparent, // Start invisible or subtle
         targetValue = Color(0xFF39FF14),  // Bright Green (Matches Sample Buttons)
         animationSpec = infiniteRepeatable(
             animation = tween(400, easing = LinearEasing),
@@ -262,20 +260,24 @@ fun PatchSlotCard(
         label = "border_blink"
     )
 
-    // 2. Determine "Is Playing" state
+    // 2. Logic to choose the correct BorderStroke
     val isPlaying = playingSampleIds.contains(slot.assignedSample)
 
-    // 3. Select Border Stroke based on state
-    // CRITERIA: Blink ONLY if Selected AND Playing (and not edit mode)
     val borderStroke = when {
-        isDropTarget -> BorderStroke(3.dp, ColorYellow) // Drag highlight
-        slot.selected && isPlaying && !isEditMode -> BorderStroke(4.dp, blinkBorderColor) // The Blink Effect
-        slot.selected && !isEditMode -> BorderStroke(4.dp, Color(slot.color.toColorInt())) // Static Selection
-        isEditMode -> BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)) // Edit Mode
+        isDropTarget -> BorderStroke(3.dp, ColorYellow) // Drag target highlight
+        slot.selected && isPlaying && !isEditMode -> BorderStroke(
+            4.dp,
+            blinkBorderColor
+        ) // Selected & Playing (Blinking)
+        slot.selected && !isEditMode -> BorderStroke(
+            4.dp,
+            Color(slot.color.toColorInt())
+        ) // Static Selection
+        isEditMode -> BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)) // Edit Mode outline
         else -> null
     }
 
-    // 4. Scale Animation
+    // 3. Scale Animation on selection
     val scale by animateFloatAsState(
         targetValue = if (slot.selected && !isEditMode) 1.02f else 1f,
         label = "scale"

@@ -38,8 +38,6 @@ class SampleRepositoryImpl @Inject constructor(
     private val scope: CoroutineScope
 ) : SampleRepository, AudioLibraryRepository {
 
-    // HTML uses Web Audio API which handles many concurrent voices well.
-    // Increased MaxStreams to 16 to better match HTML concurrency.
     private val soundPool = SoundPool.Builder()
         .setMaxStreams(16)
         .setAudioAttributes(
@@ -52,7 +50,7 @@ class SampleRepositoryImpl @Inject constructor(
 
     private val loadedSoundIds = mutableMapOf<String, Int>()
     private val activeStreamIds = mutableMapOf<Int, Int>()
-    private val activeStreamVolumes = mutableMapOf<Int, Float>() // Track volume for fade out
+    private val activeStreamVolumes = mutableMapOf<Int, Float>()
     private val sampleDurations = mutableMapOf<String, Long>()
     private val playbackJobs = mutableMapOf<Int, Job>()
 
@@ -115,6 +113,7 @@ class SampleRepositoryImpl @Inject constructor(
         val destFile = File(context.filesDir, fileName)
         context.contentResolver.openInputStream(sourceUri)
             ?.use { input -> FileOutputStream(destFile).use { input.copyTo(it) } }
+
         updateSampleDb(sampleId, fileName, originalName)
         loadSound(destFile.absolutePath)
         return@withContext fileName
@@ -163,7 +162,6 @@ class SampleRepositoryImpl @Inject constructor(
         sampleDurations.clear()
     }
 
-    // Playback Logic
     override suspend fun triggerSampleAudio(sampleId: Int) {
         val sample = sampleDao.getSampleById(sampleId)?.toDomain() ?: return
         if (sample.audioFileName == null) return
@@ -175,8 +173,30 @@ class SampleRepositoryImpl @Inject constructor(
         }
 
         val fullPath = File(context.filesDir, sample.audioFileName).absolutePath
-        val soundId = loadedSoundIds[fullPath] ?: soundPool.load(fullPath, 1)
-        if (!loadedSoundIds.containsKey(fullPath)) loadedSoundIds[fullPath] = soundId
+
+        // 1. Ensure sound is loaded
+        if (!loadedSoundIds.containsKey(fullPath)) {
+            // Load synchronously (id generation) if missed by init
+            val id = soundPool.load(fullPath, 1)
+            loadedSoundIds[fullPath] = id
+        }
+        val soundId = loadedSoundIds[fullPath] ?: return
+
+        // 2. Ensure Duration is known (Crucial for blinking duration)
+        if (!sampleDurations.containsKey(fullPath) || sampleDurations[fullPath] == 0L) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val ret = MediaMetadataRetriever()
+                    ret.setDataSource(fullPath)
+                    val dur = ret.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                        ?.toLongOrNull() ?: 0L
+                    sampleDurations[fullPath] = dur
+                    ret.release()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
 
         val vol = sample.volume / 100f
         val streamId = soundPool.play(soundId, vol, vol, 1, if (sample.loop) -1 else 0, 1f)
@@ -186,14 +206,16 @@ class SampleRepositoryImpl @Inject constructor(
             activeStreamVolumes[sampleId] = vol
             setPlayingState(sampleId, true)
 
-            // Cancel any previous job for this sample
+            // Cancel any old job for this ID
             playbackJobs[sampleId]?.cancel()
 
             if (!sample.loop) {
-                val duration = sampleDurations[fullPath] ?: 1000L
+                // Use the fetched duration, default to 1s only if extraction completely failed
+                val duration = sampleDurations[fullPath]?.takeIf { it > 0 } ?: 1000L
+
                 playbackJobs[sampleId] = scope.launch {
                     delay(duration)
-                    // Check if still playing the same stream
+                    // Check if we are still playing the same stream (user didn't stop and start again)
                     if (activeStreamIds[sampleId] == streamId) {
                         setPlayingState(sampleId, false)
                         activeStreamIds.remove(sampleId)
@@ -205,14 +227,14 @@ class SampleRepositoryImpl @Inject constructor(
 
     override fun stopSample(sampleId: Int) {
         val streamId = activeStreamIds[sampleId] ?: return
+
+        // Cancel the auto-stop timer immediately so it doesn't fire later
         playbackJobs[sampleId]?.cancel()
 
-        // HTML Logic: Linear ramp down to 0.001 over 0.05s (50ms)
-        // Android SoundPool: We simulate this with a coroutine loop
         scope.launch {
             val startVol = activeStreamVolumes[sampleId] ?: 1.0f
             val steps = 10
-            val delayPerStep = 5L // 5ms * 10 = 50ms total fade
+            val delayPerStep = 5L
 
             for (i in 1..steps) {
                 val newVol = startVol * (1.0f - (i.toFloat() / steps))
@@ -235,6 +257,8 @@ class SampleRepositoryImpl @Inject constructor(
         if (!loadedSoundIds.containsKey(path)) {
             val id = soundPool.load(path, 1)
             loadedSoundIds[path] = id
+            // Metadata extraction should be done in background if called from UI,
+            // but init calls this from Dispatchers.IO, so it's safe.
             try {
                 val ret = MediaMetadataRetriever()
                 ret.setDataSource(path)
