@@ -139,7 +139,9 @@ fun EditSampleDialog(
     onClearAudio: () -> Unit,
     onEditColor: () -> Unit
 ) {
-    var name by remember { mutableStateOf(sample.name) }
+    // MODIFIED: Added sample.name key to remember to update UI when file loads
+    var name by remember(sample.name) { mutableStateOf(sample.name) }
+
     var volume by remember { mutableFloatStateOf(sample.volume.toFloat()) }
     var loop by remember { mutableStateOf(sample.loop) }
     Dialog(onDismissRequest = onDismiss) {
