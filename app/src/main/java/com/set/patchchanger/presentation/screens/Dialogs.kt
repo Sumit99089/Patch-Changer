@@ -117,8 +117,7 @@ fun BankPageNameDialog(
                     onValueChange = { pageName = it },
                     label = { Text("Page Name") }); Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    Button(
-                        onClick = { onSaveBank(bankName); onSavePage(pageName); onDismiss() }) {
+                    Button(onClick = { onSaveBank(bankName); onSavePage(pageName); onDismiss() }) {
                         Text(
                             "Save"
                         )
@@ -164,7 +163,8 @@ fun EditSampleDialog(
                 Row {
                     Button(onClick = onLoadFile, Modifier.weight(1f)) { Text("File") }; Spacer(
                     Modifier.width(8.dp)
-                ); Button(onClick = onSelectFromLibrary, Modifier.weight(1f)) { Text("Lib") }
+                )
+                    Button(onClick = onSelectFromLibrary, Modifier.weight(1f)) { Text("Lib") }
                 }
                 Spacer(Modifier.height(8.dp)); Button(
                 onClick = onEditColor,
@@ -307,6 +307,9 @@ fun EditSlotDialog(
     var slotColorHex by remember(slot.color) { mutableStateOf(slot.color) }
     var showColorPicker by remember { mutableStateOf(false) }
 
+    // HTML-feature: Slot Volume
+    var volume by remember(slot.volume) { mutableFloatStateOf(slot.volume.toFloat()) }
+
     var perfCategory by remember { mutableStateOf("For Montage (Single)") }
     var perfBankIndex by remember { mutableIntStateOf(0) }
     var perfSearch by remember { mutableStateOf("") }
@@ -322,11 +325,7 @@ fun EditSlotDialog(
         onEvent(MainEvent.SelectPerformanceCategory(perfCategory)); perfBankIndex = 0
     }
     LaunchedEffect(perfCategory, perfBankIndex) {
-        onEvent(
-            MainEvent.SelectPerformanceBank(
-                perfBankIndex
-            )
-        )
+        onEvent(MainEvent.SelectPerformanceBank(perfBankIndex))
     }
 
     Dialog(
@@ -396,7 +395,6 @@ fun EditSlotDialog(
                             }
                             Spacer(Modifier.height(16.dp))
 
-                            // Performance Display
                             Text("Performance", fontWeight = FontWeight.Bold)
                             val displayPerf =
                                 uiState.slotToEditColor?.performanceName ?: slot.performanceName
@@ -409,7 +407,15 @@ fun EditSlotDialog(
                             )
                             Spacer(Modifier.height(16.dp))
 
-                            // --- ASSIGN SAMPLE PAD FEATURE (RESTORED) ---
+                            // Slot Volume Control (Added per request)
+                            Text("Slot Volume: ${volume.toInt()}", fontWeight = FontWeight.Bold)
+                            Slider(
+                                value = volume,
+                                onValueChange = { volume = it },
+                                valueRange = 0f..127f // MIDI standard 0-127
+                            )
+                            Spacer(Modifier.height(16.dp))
+
                             Text("Assign Sample Pad", fontWeight = FontWeight.Bold)
                             var sampleExpanded by remember { mutableStateOf(false) }
                             Box(modifier = Modifier.fillMaxWidth()) {
@@ -426,12 +432,10 @@ fun EditSlotDialog(
                                         .fillMaxWidth()
                                         .clickable { sampleExpanded = true }
                                 )
-                                // Transparent clickable box to capture clicks over the text field
                                 Box(
                                     Modifier
                                         .matchParentSize()
                                         .clickable { sampleExpanded = true })
-
                                 DropdownMenu(
                                     expanded = sampleExpanded,
                                     onDismissRequest = { sampleExpanded = false }) {
@@ -449,7 +453,6 @@ fun EditSlotDialog(
                             }
                             Spacer(Modifier.height(24.dp))
 
-                            // Actions
                             Text("Actions", fontWeight = FontWeight.Bold)
                             Row(
                                 Modifier.fillMaxWidth(),
@@ -507,8 +510,10 @@ fun EditSlotDialog(
                                 )
                                 .padding(12.dp)
                         ) {
-                            Text("Browser", fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Browser",
+                                fontWeight = FontWeight.Bold
+                            ); Spacer(Modifier.height(8.dp))
                             var catExpanded by remember { mutableStateOf(false) }
                             Box {
                                 OutlinedTextField(
@@ -612,6 +617,7 @@ fun EditSlotDialog(
                                 displayNameType = displayNameType,
                                 assignedSample = assignedSample,
                                 color = slotColorHex,
+                                volume = volume.toInt(), // Save volume
                                 performanceName = uiState.slotToEditColor?.performanceName
                                     ?: slot.performanceName,
                                 msb = uiState.slotToEditColor?.msb ?: slot.msb,
@@ -678,10 +684,7 @@ fun AudioLibraryDialog(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Button(onClick = onAddFile) { Text("Add File") }; Button(
                     onClick = {
                         selectedItem?.let {
@@ -695,13 +698,13 @@ fun AudioLibraryDialog(
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(
-                        onClick = onDismiss
-                    ) { Text("Cancel") }; Button(onClick = { selectedItem?.let { onSelect(it); onDismiss() } }) {
-                    Text(
-                        "OK"
-                    )
-                }
+                    TextButton(onClick = onDismiss) { Text("Cancel") }; Button(onClick = {
+                    selectedItem?.let {
+                        onSelect(
+                            it
+                        ); onDismiss()
+                    }
+                }) { Text("OK") }
                 }
             }
         }
@@ -785,6 +788,7 @@ fun HandleDialogs(
                 viewModel.onEvent(MainEvent.UpdateSample(sample.copy(color = color))); viewModel.onEvent(
                 MainEvent.ShowSampleColorDialog(null)
             )
-            })
+            }
+        )
     }
 }

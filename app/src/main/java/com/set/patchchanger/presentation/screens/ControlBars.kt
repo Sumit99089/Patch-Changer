@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,10 +16,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -27,6 +31,8 @@ import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -45,9 +51,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
 import com.set.patchchanger.domain.model.MidiConnectionState
+import com.set.patchchanger.domain.model.SearchResult
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 import com.set.patchchanger.ui.theme.ColorGreen
@@ -64,7 +74,6 @@ fun AppTopBar(
 ) {
     val midiState = uiState.midiState
     val settings = uiState.settings
-    // Use theme surface color
     val surfaceColor = MaterialTheme.colorScheme.surface
     val outlineColor = MaterialTheme.colorScheme.outline
 
@@ -96,9 +105,10 @@ fun AppTopBar(
 
         Spacer(Modifier.width(24.dp))
 
-        // 2. Search
+        // 2. Search (Integrated Dropdown)
         Box(modifier = Modifier.weight(1f)) {
             var isFocused by remember { mutableStateOf(false) }
+
             BasicTextField(
                 value = uiState.searchQuery,
                 onValueChange = { onEvent(MainEvent.UpdateSearchQuery(it)) },
@@ -130,6 +140,33 @@ fun AppTopBar(
                     }
                 }
             )
+
+            // HTML-Style Dropdown Results
+            if (uiState.searchQuery.isNotBlank() && uiState.searchResults.isNotEmpty()) {
+                Popup(
+                    alignment = Alignment.TopStart,
+                    offset = IntOffset(0, 100) // Rough approx for 36dp + margin
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth() // Matches parent box width (flex: 2 in HTML)
+                            .heightIn(max = 300.dp)
+                            .border(1.dp, outlineColor, RoundedCornerShape(0.dp, 0.dp, 6.dp, 6.dp)),
+                        elevation = CardDefaults.cardElevation(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        shape = RoundedCornerShape(0.dp, 0.dp, 6.dp, 6.dp)
+                    ) {
+                        LazyColumn {
+                            items(uiState.searchResults) { result ->
+                                SearchResultItem(
+                                    result = result,
+                                    onClick = { onEvent(MainEvent.GoToSearchResult(result)) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         Spacer(Modifier.width(24.dp))
@@ -148,13 +185,7 @@ fun AppTopBar(
                     modifier = Modifier.padding(end = 8.dp)
                 )
 
-                // Animation Logic for buttons
-                // HTML: .blinking { animation: blink-orange 1.2s infinite; } -> Orange to Dark Orange
-                // Here we use Theme Primary to Secondary for generic blinking, or explicit colors
                 val blinkColor1 = ColorOrange
-                val blinkColor2 = Color(0xFFE65100) // Deep Orange
-
-                // Minus Button
                 val isMinusBlinking = settings.currentTranspose < 0
                 val minusColor by animateColorAsState(
                     targetValue = if (isMinusBlinking) blinkColor1 else MaterialTheme.colorScheme.surfaceVariant,
@@ -184,7 +215,6 @@ fun AppTopBar(
                     )
                 }
 
-                // Value
                 Box(
                     modifier = Modifier
                         .size(32.dp, 30.dp)
@@ -201,7 +231,6 @@ fun AppTopBar(
                     )
                 }
 
-                // Plus Button
                 val isPlusBlinking = settings.currentTranspose > 0
                 val plusColor by animateColorAsState(
                     targetValue = if (isPlusBlinking) blinkColor1 else MaterialTheme.colorScheme.surfaceVariant,
@@ -276,10 +305,7 @@ fun AppTopBar(
                     containerColor = if (isEditMode) ColorOrange else MaterialTheme.colorScheme.surfaceVariant,
                     contentColor = if (isEditMode) Color.Black else MaterialTheme.colorScheme.onSurface
                 ),
-                border = if (!isEditMode) androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    outlineColor
-                ) else null,
+                border = if (!isEditMode) BorderStroke(1.dp, outlineColor) else null,
                 shape = RoundedCornerShape(4.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 modifier = Modifier.height(30.dp)
@@ -288,6 +314,33 @@ fun AppTopBar(
                 Spacer(Modifier.width(4.dp))
                 Text(if (isEditMode) "Done" else "Edit", fontSize = 12.sp)
             }
+        }
+    }
+}
+
+@Composable
+fun SearchResultItem(result: SearchResult, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 10.dp), // Matched HTML Padding
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                result.slot.getDisplayName(),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                "Bank: ${result.bankName}  |  Page: ${result.pageName} / Slot ${result.slot.getSlotNumber()}", // Matched HTML format
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
         }
     }
 }
@@ -310,12 +363,10 @@ fun SelectorBar(
             .padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Bank Selector
         SelectorItem(
             label = "Bank", value = bankName,
             onPrev = { onEvent(MainEvent.NavigateBank(-1)) },
             onNext = { onEvent(MainEvent.NavigateBank(1)) },
-            // FIX: Restrict click to Edit Mode only
             onClick = { if (isEditMode) onEvent(MainEvent.ShowBankPageNameDialog(true)) },
             modifier = Modifier
                 .weight(1f)
@@ -324,12 +375,10 @@ fun SelectorBar(
 
         Spacer(Modifier.width(8.dp))
 
-        // Page Selector
         SelectorItem(
             label = "Page", value = pageName,
             onPrev = { onEvent(MainEvent.NavigatePage(-1)) },
             onNext = { onEvent(MainEvent.NavigatePage(1)) },
-            // FIX: Restrict click to Edit Mode only
             onClick = { if (isEditMode) onEvent(MainEvent.ShowBankPageNameDialog(true)) },
             modifier = Modifier
                 .weight(1f)
@@ -353,7 +402,7 @@ fun SelectorItem(
             modifier = Modifier
                 .size(38.dp)
                 .clickable(onClick = onPrev),
-            border = androidx.compose.foundation.BorderStroke(1.dp, outlineColor)
+            border = BorderStroke(1.dp, outlineColor)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
@@ -400,7 +449,7 @@ fun SelectorItem(
             modifier = Modifier
                 .size(38.dp)
                 .clickable(onClick = onNext),
-            border = androidx.compose.foundation.BorderStroke(1.dp, outlineColor)
+            border = BorderStroke(1.dp, outlineColor)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(

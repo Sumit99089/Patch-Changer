@@ -45,31 +45,37 @@ android {
 }
 
 dependencies {
-
     // GSON Converter
     implementation(libs.gson)
-
     //Dagger-Hilt DI
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-
     implementation(libs.hilt.navigation.compose)
     //Material3 Extended pack
     implementation(libs.material.icons.extended)
-
     // Room
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler) // Changed from kapt to ksp
-
     //Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation(libs.kotlinx.coroutines.core)
     // Coroutines for Android (for Dispatchers.Main, lifecycle, etc.)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation(libs.kotlinx.coroutines.android)
     // DataStore (Preferences)
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation(libs.androidx.datastore.preferences)
     // (Optional) Core DataStore library — only needed for advanced usage
-    implementation("androidx.datastore:datastore-core:1.1.1")
+    implementation(libs.androidx.datastore.core)
+    // Retrofit & Networking
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+    implementation(libs.logging.interceptor)
+    // Image Loading (Profile Pictures)
+    implementation(libs.coil.compose)
+    // Razorpay
+    implementation(libs.checkout)
+    // Google Sign In (Cred Manager recommended for newer apps, but keeping it simple)
+    implementation(libs.play.services.auth)
+
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

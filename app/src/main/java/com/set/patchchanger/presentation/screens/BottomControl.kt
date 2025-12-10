@@ -15,6 +15,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -50,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.toColorInt
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
+import com.set.patchchanger.ui.theme.ColorYellow
 import com.set.patchchanger.ui.theme.SampleGreen
 import com.set.patchchanger.ui.theme.SamplePink
 import com.set.patchchanger.ui.theme.SamplePurple
@@ -110,11 +113,7 @@ fun BottomBar(
                     isEditMode = isEditMode,
                     onClick = { if (sample != null) onEvent(MainEvent.TriggerSample(sample.id)) },
                     onLongClick = {
-                        if (sample != null) onEvent(
-                            MainEvent.ShowEditSampleDialog(
-                                sample
-                            )
-                        )
+                        if (sample != null) onEvent(MainEvent.ShowEditSampleDialog(sample))
                     }
                 )
             }
@@ -122,10 +121,34 @@ fun BottomBar(
 
         Spacer(Modifier.width(8.dp))
 
+        // HTML "Selected Info" / Sync Status
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center) {
+            // HTML: .auto-sync-indicator.syncing { background-color: var(--color-yellow); animation: pulse 1s infinite; }
+            val syncColor by animateColorAsState(
+                targetValue = ColorYellow,
+                animationSpec = infiniteRepeatable(tween(1000), RepeatMode.Reverse),
+                label = "syncPulse"
+            )
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(syncColor) // Pulsing Yellow to mimic "Syncing" or static Green for "Synced"
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    "Auto-Sync Ready",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         // Right Controls
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ControlButton(Icons.Default.Palette) { onEvent(MainEvent.CycleTheme) }
-            // Removed Fullscreen button
         }
     }
 }

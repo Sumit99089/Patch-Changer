@@ -38,8 +38,10 @@ class SampleRepositoryImpl @Inject constructor(
     private val scope: CoroutineScope
 ) : SampleRepository, AudioLibraryRepository {
 
+    // HTML uses Web Audio API which handles many concurrent voices well.
+    // Increased MaxStreams to 16 to better match HTML concurrency.
     private val soundPool = SoundPool.Builder()
-        .setMaxStreams(8)
+        .setMaxStreams(16)
         .setAudioAttributes(
             AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -50,16 +52,15 @@ class SampleRepositoryImpl @Inject constructor(
 
     private val loadedSoundIds = mutableMapOf<String, Int>()
     private val activeStreamIds = mutableMapOf<Int, Int>()
+    private val activeStreamVolumes = mutableMapOf<Int, Float>() // Track volume for fade out
     private val sampleDurations = mutableMapOf<String, Long>()
     private val playbackJobs = mutableMapOf<Int, Job>()
 
     private val _playingSampleIds = MutableStateFlow<Set<Int>>(emptySet())
 
-    // Expose playing state flow as required by interface
     override fun observePlayingStates(): Flow<Set<Int>> = _playingSampleIds.asStateFlow()
 
     init {
-        // Preload sounds immediately
         scope.launch(Dispatchers.IO) {
             sampleDao.observeAllSamples().collect { entities ->
                 if (entities.isEmpty()) {
@@ -167,13 +168,14 @@ class SampleRepositoryImpl @Inject constructor(
         val sample = sampleDao.getSampleById(sampleId)?.toDomain() ?: return
         if (sample.audioFileName == null) return
 
+        // If currently playing, stop it (Toggle behavior)
         if (_playingSampleIds.value.contains(sampleId)) {
             stopSample(sampleId)
             return
         }
 
         val fullPath = File(context.filesDir, sample.audioFileName).absolutePath
-        val soundId = loadedSoundIds[fullPath] ?: soundPool.load(fullPath, 1) // Fallback load
+        val soundId = loadedSoundIds[fullPath] ?: soundPool.load(fullPath, 1)
         if (!loadedSoundIds.containsKey(fullPath)) loadedSoundIds[fullPath] = soundId
 
         val vol = sample.volume / 100f
@@ -181,13 +183,17 @@ class SampleRepositoryImpl @Inject constructor(
 
         if (streamId != 0) {
             activeStreamIds[sampleId] = streamId
+            activeStreamVolumes[sampleId] = vol
             setPlayingState(sampleId, true)
 
+            // Cancel any previous job for this sample
+            playbackJobs[sampleId]?.cancel()
+
             if (!sample.loop) {
-                playbackJobs[sampleId]?.cancel()
                 val duration = sampleDurations[fullPath] ?: 1000L
                 playbackJobs[sampleId] = scope.launch {
                     delay(duration)
+                    // Check if still playing the same stream
                     if (activeStreamIds[sampleId] == streamId) {
                         setPlayingState(sampleId, false)
                         activeStreamIds.remove(sampleId)
@@ -198,12 +204,27 @@ class SampleRepositoryImpl @Inject constructor(
     }
 
     override fun stopSample(sampleId: Int) {
-        activeStreamIds[sampleId]?.let {
-            soundPool.stop(it)
-            activeStreamIds.remove(sampleId)
-        }
+        val streamId = activeStreamIds[sampleId] ?: return
         playbackJobs[sampleId]?.cancel()
-        setPlayingState(sampleId, false)
+
+        // HTML Logic: Linear ramp down to 0.001 over 0.05s (50ms)
+        // Android SoundPool: We simulate this with a coroutine loop
+        scope.launch {
+            val startVol = activeStreamVolumes[sampleId] ?: 1.0f
+            val steps = 10
+            val delayPerStep = 5L // 5ms * 10 = 50ms total fade
+
+            for (i in 1..steps) {
+                val newVol = startVol * (1.0f - (i.toFloat() / steps))
+                soundPool.setVolume(streamId, newVol, newVol)
+                delay(delayPerStep)
+            }
+
+            soundPool.stop(streamId)
+            activeStreamIds.remove(sampleId)
+            activeStreamVolumes.remove(sampleId)
+            setPlayingState(sampleId, false)
+        }
     }
 
     private fun setPlayingState(id: Int, playing: Boolean) {
@@ -244,7 +265,6 @@ class SampleRepositoryImpl @Inject constructor(
         )
     }
 
-    // Library Methods
     override fun observeLibrary() =
         audioLibraryDao.observeAllAudio().map { it.map { e -> e.toDomain() } }
 
@@ -296,7 +316,6 @@ class SampleRepositoryImpl @Inject constructor(
     private fun AudioLibraryEntity.toDomain() =
         AudioLibraryItem(name, filePath, sizeBytes, durationMs, addedTimestamp)
 
-    // FIX: Changed receiver from AudioLibraryEntity to AudioLibraryItem
     private fun AudioLibraryItem.toEntity() =
         AudioLibraryEntity(name, filePath, sizeBytes, durationMs, addedTimestamp)
 }

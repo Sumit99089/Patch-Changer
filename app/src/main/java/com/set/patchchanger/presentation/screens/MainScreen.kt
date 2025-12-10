@@ -4,20 +4,12 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -34,13 +26,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.set.patchchanger.domain.model.AppTheme
-import com.set.patchchanger.domain.model.SearchResult
 import com.set.patchchanger.presentation.viewmodel.MainViewModel
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.event.UiEvent
@@ -67,7 +55,6 @@ fun MainScreenContent(
     val snackbarHostState = remember { SnackbarHostState() }
     var isEditMode by remember { mutableStateOf(false) }
 
-    // Launchers
     val audioPickerLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let { viewModel.onEvent(MainEvent.SetSampleFile(it, viewModel.getFileName(it))) }
@@ -76,10 +63,7 @@ fun MainScreenContent(
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let {
                 viewModel.onEvent(
-                    MainEvent.AddFileToLibrary(
-                        it,
-                        viewModel.getFileName(it)
-                    )
+                    MainEvent.AddFileToLibrary(it, viewModel.getFileName(it))
                 )
             }
         }
@@ -117,17 +101,16 @@ fun MainScreenContent(
             when (uiState) {
                 is MainUiState.Success -> {
                     Column(Modifier.fillMaxSize()) {
-                        // 1. Top Bar
+                        // 1. Top Bar (Contains Search Dropdown Logic now)
                         AppTopBar(uiState, viewModel::onEvent, isEditMode) {
                             isEditMode = !isEditMode
                         }
 
+                        // 2. Main Content (Selector + Grid)
                         Box(modifier = Modifier.weight(1f)) {
                             Column(Modifier.fillMaxSize()) {
-                                // 2. Selector Bar
                                 SelectorBar(uiState, viewModel::onEvent, isEditMode)
 
-                                // 3. Grid
                                 PatchGrid(
                                     patchData = uiState.patchData,
                                     currentBankIndex = uiState.settings.currentBankIndex,
@@ -161,13 +144,9 @@ fun MainScreenContent(
                                 )
                                 Spacer(Modifier.height(4.dp))
                             }
-
-                            if (uiState.searchQuery.isNotBlank() && uiState.searchResults.isNotEmpty()) {
-                                SearchResultsOverlay(uiState, viewModel::onEvent)
-                            }
                         }
 
-                        // 4. Bottom Bar (No Fullscreen toggle passed)
+                        // 3. Bottom Bar
                         BottomBar(uiState, viewModel::onEvent, isEditMode)
                     }
 
@@ -181,54 +160,6 @@ fun MainScreenContent(
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun SearchResultsOverlay(uiState: MainUiState.Success, onEvent: (MainEvent) -> Unit) {
-    Card(
-        modifier = Modifier
-            .padding(top = 0.dp, start = 200.dp, end = 200.dp)
-            .fillMaxWidth(0.5f)
-            .heightIn(max = 300.dp)
-            .zIndex(100f),
-        elevation = CardDefaults.cardElevation(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        LazyColumn {
-            items(uiState.searchResults) { result ->
-                SearchResultItem(
-                    result = result,
-                    onClick = { onEvent(MainEvent.GoToSearchResult(result)) })
-            }
-        }
-    }
-}
-
-@Composable
-fun SearchResultItem(result: SearchResult, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                result.slot.getDisplayName(),
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                "Bank: ${result.bankName}  |  Page: ${result.pageName}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
         }
     }
 }
