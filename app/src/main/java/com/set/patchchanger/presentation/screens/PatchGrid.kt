@@ -1,6 +1,12 @@
 package com.set.patchchanger.presentation.screens
 
+import androidx.compose.animation.animateColor
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -63,6 +69,7 @@ fun PatchGrid(
     patchData: PatchData,
     currentBankIndex: Int,
     currentPageIndex: Int,
+    playingSampleIds: Set<Int>,
     isEditMode: Boolean,
     onSlotClick: (PatchSlot) -> Unit,
     onSlotEdit: (PatchSlot) -> Unit,
@@ -99,6 +106,7 @@ fun PatchGrid(
                             val slot = slots[slotIndex]
                             PatchSlotItem(
                                 slot = slot,
+                                playingSampleIds = playingSampleIds,
                                 isEditMode = isEditMode,
                                 isBeingDragged = dragState.draggedSlot?.id == slot.id,
                                 isDropTarget = dragState.dropTargetSlot?.id == slot.id,
@@ -170,7 +178,8 @@ fun PatchGrid(
                     .height(height)
                     .graphicsLayer { alpha = 0.8f; scaleX = 1.05f; scaleY = 1.05f }
             ) {
-                PatchSlotCard(slot, isEditMode, false, false, Modifier.fillMaxSize())
+                // Pass empty set for dragging visual (no blink while dragging)
+                PatchSlotCard(slot, emptySet(), isEditMode, false, false, Modifier.fillMaxSize())
             }
         }
     }
@@ -179,6 +188,7 @@ fun PatchGrid(
 @Composable
 fun RowScope.PatchSlotItem(
     slot: PatchSlot,
+    playingSampleIds: Set<Int>,
     isEditMode: Boolean,
     isBeingDragged: Boolean,
     isDropTarget: Boolean,
@@ -191,6 +201,7 @@ fun RowScope.PatchSlotItem(
     val scope = rememberCoroutineScope()
     PatchSlotCard(
         slot = slot,
+        playingSampleIds = playingSampleIds,
         isEditMode = isEditMode,
         isBeingDragged = isBeingDragged,
         isDropTarget = isDropTarget,
@@ -226,6 +237,7 @@ fun RowScope.PatchSlotItem(
 @Composable
 fun PatchSlotCard(
     slot: PatchSlot,
+    playingSampleIds: Set<Int>,
     isEditMode: Boolean,
     isBeingDragged: Boolean,
     isDropTarget: Boolean,
@@ -236,10 +248,34 @@ fun PatchSlotCard(
     } catch (e: Exception) {
         MaterialTheme.colorScheme.surfaceVariant
     }
-    val borderColor =
-        if (isDropTarget) ColorYellow else if (slot.selected && !isEditMode) Color(slot.color.toColorInt()) else Color.Transparent // Border matches slot color for glow effect
 
-    // Animate scale on selection
+    // --- ANIMATION LOGIC ---
+    // 1. Setup infinite transition for blink
+    val infiniteTransition = rememberInfiniteTransition(label = "grid_blink")
+    val blinkBorderColor by infiniteTransition.animateColor(
+        initialValue = Color.Transparent, // Starts subtle
+        targetValue = Color(0xFF39FF14),  // Bright Green (Matches Sample Buttons)
+        animationSpec = infiniteRepeatable(
+            animation = tween(400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "border_blink"
+    )
+
+    // 2. Determine "Is Playing" state
+    val isPlaying = playingSampleIds.contains(slot.assignedSample)
+
+    // 3. Select Border Stroke based on state
+    // CRITERIA: Blink ONLY if Selected AND Playing (and not edit mode)
+    val borderStroke = when {
+        isDropTarget -> BorderStroke(3.dp, ColorYellow) // Drag highlight
+        slot.selected && isPlaying && !isEditMode -> BorderStroke(4.dp, blinkBorderColor) // The Blink Effect
+        slot.selected && !isEditMode -> BorderStroke(4.dp, Color(slot.color.toColorInt())) // Static Selection
+        isEditMode -> BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)) // Edit Mode
+        else -> null
+    }
+
+    // 4. Scale Animation
     val scale by animateFloatAsState(
         targetValue = if (slot.selected && !isEditMode) 1.02f else 1f,
         label = "scale"
@@ -252,13 +288,7 @@ fun PatchSlotCard(
             scaleY = scale
         },
         colors = CardDefaults.cardColors(containerColor = bgColor),
-        // HTML: box-shadow: inset 0 0 0 4px rgba(0,0,0,0.8) for blink.
-        // We approximate with border. To exactly match "inset", we'd need custom draw.
-        // For now, a solid border is close enough to the provided visual.
-        border = if (slot.selected && !isEditMode) BorderStroke(
-            4.dp,
-            Color.Black.copy(alpha = 0.3f)
-        ) else if (isEditMode) BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)) else null,
+        border = borderStroke,
         shape = RoundedCornerShape(6.dp)
     ) {
         Box(

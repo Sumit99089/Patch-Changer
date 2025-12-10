@@ -1,8 +1,9 @@
 package com.set.patchchanger.presentation.screens
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -185,19 +186,27 @@ fun AppTopBar(
                     modifier = Modifier.padding(end = 8.dp)
                 )
 
-                val blinkColor1 = ColorOrange
-                val isMinusBlinking = settings.currentTranspose < 0
-                val minusColor by animateColorAsState(
-                    targetValue = if (isMinusBlinking) blinkColor1 else MaterialTheme.colorScheme.surfaceVariant,
-                    animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
-                    label = "minus"
+                // Shared Infinite Transition for Blinking
+                val infiniteTransition = rememberInfiniteTransition(label = "transpose_blink")
+                val blinkColor by infiniteTransition.animateColor(
+                    initialValue = MaterialTheme.colorScheme.surfaceVariant,
+                    targetValue = ColorOrange,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(600),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "blink_color"
                 )
+
+                // MINUS BUTTON: Blinks ONLY if negative
+                val minusBg =
+                    if (settings.currentTranspose < 0) blinkColor else MaterialTheme.colorScheme.surfaceVariant
 
                 Box(
                     modifier = Modifier
                         .size(32.dp, 30.dp)
                         .background(
-                            minusColor,
+                            minusBg,
                             RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)
                         )
                         .clickable { onEvent(MainEvent.UpdateTranspose(-1)) }
@@ -231,17 +240,14 @@ fun AppTopBar(
                     )
                 }
 
-                val isPlusBlinking = settings.currentTranspose > 0
-                val plusColor by animateColorAsState(
-                    targetValue = if (isPlusBlinking) blinkColor1 else MaterialTheme.colorScheme.surfaceVariant,
-                    animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
-                    label = "plus"
-                )
+                // PLUS BUTTON: Blinks ONLY if positive
+                val plusBg =
+                    if (settings.currentTranspose > 0) blinkColor else MaterialTheme.colorScheme.surfaceVariant
 
                 Box(
                     modifier = Modifier
                         .size(32.dp, 30.dp)
-                        .background(plusColor, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp))
+                        .background(plusBg, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp))
                         .clickable { onEvent(MainEvent.UpdateTranspose(1)) }
                         .border(
                             1.dp,

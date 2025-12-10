@@ -101,7 +101,7 @@ fun MainScreenContent(
             when (uiState) {
                 is MainUiState.Success -> {
                     Column(Modifier.fillMaxSize()) {
-                        // 1. Top Bar (Contains Search Dropdown Logic now)
+                        // 1. Top Bar
                         AppTopBar(uiState, viewModel::onEvent, isEditMode) {
                             isEditMode = !isEditMode
                         }
@@ -115,6 +115,7 @@ fun MainScreenContent(
                                     patchData = uiState.patchData,
                                     currentBankIndex = uiState.settings.currentBankIndex,
                                     currentPageIndex = uiState.settings.currentPageIndex,
+                                    playingSampleIds = uiState.playingSampleIds, // Pass Playing States!
                                     isEditMode = isEditMode,
                                     onSlotClick = { slot ->
                                         viewModel.onEvent(

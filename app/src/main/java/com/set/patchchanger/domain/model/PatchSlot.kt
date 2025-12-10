@@ -28,7 +28,6 @@ data class PatchSlot(
     fun getSlotNumber(): Int = (id % 16) + 1
     fun getPageIndex(): Int = (id / 16) % 16
     fun getBankIndex(): Int = id / 256
-
     fun copyDataFrom(source: PatchSlot): PatchSlot {
         return this.copy(
             name = source.name,

@@ -1,9 +1,10 @@
 package com.set.patchchanger.presentation.screens
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -121,12 +122,16 @@ fun BottomBar(
 
         Spacer(Modifier.width(8.dp))
 
-        // HTML "Selected Info" / Sync Status
+        // Auto-Sync Indicator
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center) {
-            // HTML: .auto-sync-indicator.syncing { background-color: var(--color-yellow); animation: pulse 1s infinite; }
-            val syncColor by animateColorAsState(
-                targetValue = ColorYellow,
-                animationSpec = infiniteRepeatable(tween(1000), RepeatMode.Reverse),
+            val infiniteTransition = rememberInfiniteTransition(label = "sync_pulse")
+            val syncColor by infiniteTransition.animateColor(
+                initialValue = ColorYellow,
+                targetValue = ColorYellow.copy(alpha = 0.5f),
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
                 label = "syncPulse"
             )
 
@@ -135,7 +140,7 @@ fun BottomBar(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(syncColor) // Pulsing Yellow to mimic "Syncing" or static Green for "Synced"
+                        .background(syncColor)
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
@@ -205,26 +210,34 @@ fun RowScope.SampleButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val animatedColor by animateColorAsState(
-        targetValue = if (isPlaying) Color(0xFF39FF14) else baseColor,
+    // Infinite transition for border blinking
+    val infiniteTransition = rememberInfiniteTransition(label = "sample_blink")
+    val blinkBorderColor by infiniteTransition.animateColor(
+        initialValue = MaterialTheme.colorScheme.outline,
+        targetValue = Color(0xFF39FF14), // Bright Green
         animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
+            animation = tween(400, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "blink"
+        label = "border_blink"
     )
 
-    val finalColor = if (isPressed) Color.White else if (isPlaying) animatedColor else baseColor
-    val textColor =
-        if (isPressed || (isPlaying && finalColor == Color(0xFF39FF14))) Color.Black else Color.White
+    // Apply blinking ONLY if playing
+    val borderStroke = if (isPlaying) {
+        BorderStroke(3.dp, blinkBorderColor)
+    } else {
+        BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    }
+
+    val finalContentColor = if (isPressed) Color.Black else Color.White
 
     Box(
         modifier = Modifier
             .weight(1f)
             .fillMaxHeight()
             .clip(RoundedCornerShape(6.dp))
-            .background(finalColor)
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(6.dp))
+            .background(if (isPressed) Color.White else baseColor)
+            .border(borderStroke, RoundedCornerShape(6.dp))
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -233,6 +246,6 @@ fun RowScope.SampleButton(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Text(name, color = textColor, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text(name, color = finalContentColor, fontWeight = FontWeight.Bold, fontSize = 18.sp)
     }
 }
