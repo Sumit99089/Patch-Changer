@@ -49,6 +49,14 @@ class PatchRepositoryImpl @Inject constructor(
         return buildPatchData(slots, banks, pages)
     }
 
+    override suspend fun getSlotById(id: Int): PatchSlot? {
+        return patchSlotDao.getSlotById(id)?.toDomainModel()
+    }
+
+    override suspend fun setSelectedSlot(slotId: Int) {
+        patchSlotDao.setSelectedSlot(slotId)
+    }
+
     private fun buildPatchData(
         slots: List<PatchSlotEntity>,
         banks: List<BankEntity>,

@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.Flow
 interface PatchRepository {
     fun observePatchData(): Flow<PatchData>
     suspend fun getPatchData(): PatchData
+    suspend fun getSlotById(id: Int): PatchSlot?
+    suspend fun setSelectedSlot(slotId: Int)
     suspend fun updateSlot(slot: PatchSlot)
     suspend fun updateSlots(slots: List<PatchSlot>)
     suspend fun updateBankName(index: Int, newName: String)

@@ -12,35 +12,22 @@ class SelectPatchUseCase @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) {
     suspend operator fun invoke(slotId: Int): PatchSlot? {
-        val patchData = patchRepository.getPatchData()
+        // 1. Fast Fetch: Get only the target slot info needed for MIDI
+        val slot = patchRepository.getSlotById(slotId) ?: return null
         val settings = settingsRepository.getSettings()
 
-        val updatedSlots = mutableListOf<PatchSlot>()
-        var selectedSlot: PatchSlot? = null
+        // 2. Immediate Action: Send MIDI before doing any heavy DB work
+        midiRepository.sendProgramChange(
+            channel = settings.currentMidiChannel,
+            msb = slot.msb,
+            lsb = slot.lsb,
+            pc = slot.pc
+        )
 
-        patchData.banks.forEach { bank ->
-            bank.pages.forEach { page ->
-                page.slots.forEach { slot ->
-                    val updated = slot.copy(selected = slot.id == slotId)
-                    updatedSlots.add(updated)
-                    if (updated.selected) {
-                        selectedSlot = updated
-                    }
-                }
-            }
-        }
+        // 3. Background: Efficiently update the 'selected' state in DB
+        // This replaces the previous logic that read the whole DB, iterated 2048 items, and wrote them back.
+        patchRepository.setSelectedSlot(slotId)
 
-        patchRepository.updateSlots(updatedSlots)
-
-        selectedSlot?.let { slot ->
-            midiRepository.sendProgramChange(
-                channel = settings.currentMidiChannel,
-                msb = slot.msb,
-                lsb = slot.lsb,
-                pc = slot.pc
-            )
-        }
-
-        return selectedSlot
+        return slot.copy(selected = true)
     }
 }

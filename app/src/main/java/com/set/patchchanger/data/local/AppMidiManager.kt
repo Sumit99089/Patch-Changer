@@ -148,16 +148,25 @@ class AppMidiManager @Inject constructor(
      * Disconnects from current device.
      */
     fun disconnect() {
+        // Close input port
         try {
             inputPort?.close()
-            midiDevice?.close()
         } catch (e: Exception) {
             // Ignore errors on close
-        } finally {
-            inputPort = null
-            midiDevice = null
-            _connectionState.value = MidiConnectionState.Disconnected
+            e.printStackTrace()
         }
+
+        // Close device (Important: Must be called even if port close fails)
+        try {
+            midiDevice?.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // Reset state
+        inputPort = null
+        midiDevice = null
+        _connectionState.value = MidiConnectionState.Disconnected
     }
 
     /**
