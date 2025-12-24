@@ -97,7 +97,7 @@ fun AppTopBar(
                 letterSpacing = 0.5.sp
             )
             Text(
-                "@beat0",
+                "Live Set Patch Changer",
                 modifier = Modifier.align(Alignment.End),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 fontSize = 12.5.sp

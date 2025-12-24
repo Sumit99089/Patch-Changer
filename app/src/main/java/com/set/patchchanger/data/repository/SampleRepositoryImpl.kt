@@ -1,9 +1,8 @@
 package com.set.patchchanger.data.repository
 
 import android.content.Context
-import android.media.AudioAttributes
 import android.media.MediaMetadataRetriever
-import android.media.SoundPool
+import android.media.MediaPlayer
 import android.net.Uri
 import com.set.patchchanger.data.local.dao.AudioLibraryDao
 import com.set.patchchanger.data.local.dao.SampleDao
@@ -16,8 +15,6 @@ import com.set.patchchanger.domain.repository.SampleRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,24 +35,10 @@ class SampleRepositoryImpl @Inject constructor(
     private val scope: CoroutineScope
 ) : SampleRepository, AudioLibraryRepository {
 
-    private val soundPool = SoundPool.Builder()
-        .setMaxStreams(16)
-        .setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-        )
-        .build()
-
-    private val loadedSoundIds = mutableMapOf<String, Int>()
-    private val activeStreamIds = mutableMapOf<Int, Int>()
-    private val activeStreamVolumes = mutableMapOf<Int, Float>()
-    private val sampleDurations = mutableMapOf<String, Long>()
-    private val playbackJobs = mutableMapOf<Int, Job>()
+    // Replaced SoundPool with MediaPlayer for full playback support
+    private val mediaPlayers = mutableMapOf<Int, MediaPlayer>()
 
     private val _playingSampleIds = MutableStateFlow<Set<Int>>(emptySet())
-
     override fun observePlayingStates(): Flow<Set<Int>> = _playingSampleIds.asStateFlow()
 
     init {
@@ -63,13 +46,6 @@ class SampleRepositoryImpl @Inject constructor(
             sampleDao.observeAllSamples().collect { entities ->
                 if (entities.isEmpty()) {
                     sampleDao.insertSamples(generateDefaultSamples())
-                } else {
-                    entities.forEach { entity ->
-                        entity.audioFileName?.let { fileName ->
-                            val file = File(context.filesDir, fileName)
-                            if (file.exists()) loadSound(file.absolutePath)
-                        }
-                    }
                 }
             }
         }
@@ -84,10 +60,6 @@ class SampleRepositoryImpl @Inject constructor(
 
     override suspend fun updateSample(sample: SamplePad) {
         sampleDao.updateSample(sample.toEntity())
-        sample.audioFileName?.let { name ->
-            val file = File(context.filesDir, name)
-            if (file.exists()) loadSound(file.absolutePath)
-        }
     }
 
     override suspend fun clearSampleAudio(sampleId: Int) {
@@ -115,7 +87,6 @@ class SampleRepositoryImpl @Inject constructor(
             ?.use { input -> FileOutputStream(destFile).use { input.copyTo(it) } }
 
         updateSampleDb(sampleId, fileName, originalName)
-        loadSound(destFile.absolutePath)
         return@withContext fileName
     }
 
@@ -129,7 +100,6 @@ class SampleRepositoryImpl @Inject constructor(
         if (sourceFile.exists()) {
             sourceFile.copyTo(destFile, overwrite = true)
             updateSampleDb(sampleId, fileName, libraryItem.name)
-            loadSound(destFile.absolutePath)
         }
         return@withContext fileName
     }
@@ -154,126 +124,91 @@ class SampleRepositoryImpl @Inject constructor(
     }
 
     override suspend fun resetSamples() {
-        activeStreamIds.keys.toList().forEach { stopSample(it) }
+        // Stop all active players
+        withContext(Dispatchers.Main) {
+            mediaPlayers.keys.toList().forEach { stopSample(it) }
+        }
         sampleDao.deleteAll()
         sampleDao.insertSamples(generateDefaultSamples())
-        loadedSoundIds.values.forEach { soundPool.unload(it) }
-        loadedSoundIds.clear()
-        sampleDurations.clear()
     }
 
     override suspend fun triggerSampleAudio(sampleId: Int) {
-        val sample = sampleDao.getSampleById(sampleId)?.toDomain() ?: return
+        // 1. Get sample info from DB (IO Thread)
+        val sample = withContext(Dispatchers.IO) {
+            sampleDao.getSampleById(sampleId)?.toDomain()
+        } ?: return
+
         if (sample.audioFileName == null) return
+        val file = File(context.filesDir, sample.audioFileName)
+        if (!file.exists()) return
 
-        // If currently playing, stop it (Toggle behavior)
-        if (_playingSampleIds.value.contains(sampleId)) {
-            stopSample(sampleId)
-            return
-        }
-
-        val fullPath = File(context.filesDir, sample.audioFileName).absolutePath
-
-        // 1. Ensure sound is loaded
-        if (!loadedSoundIds.containsKey(fullPath)) {
-            // Load synchronously (id generation) if missed by init
-            val id = soundPool.load(fullPath, 1)
-            loadedSoundIds[fullPath] = id
-        }
-        val soundId = loadedSoundIds[fullPath] ?: return
-
-        // 2. Ensure Duration is known (Crucial for blinking duration)
-        if (!sampleDurations.containsKey(fullPath) || sampleDurations[fullPath] == 0L) {
-            withContext(Dispatchers.IO) {
-                try {
-                    val ret = MediaMetadataRetriever()
-                    ret.setDataSource(fullPath)
-                    val dur = ret.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                        ?.toLongOrNull() ?: 0L
-                    sampleDurations[fullPath] = dur
-                    ret.release()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-        }
-
-        val vol = sample.volume / 100f
-        val streamId = soundPool.play(soundId, vol, vol, 1, if (sample.loop) -1 else 0, 1f)
-
-        if (streamId != 0) {
-            activeStreamIds[sampleId] = streamId
-            activeStreamVolumes[sampleId] = vol
-            setPlayingState(sampleId, true)
-
-            // Cancel any old job for this ID
-            playbackJobs[sampleId]?.cancel()
-
-            if (!sample.loop) {
-                // Use the fetched duration, default to 1s only if extraction completely failed
-                val duration = sampleDurations[fullPath]?.takeIf { it > 0 } ?: 1000L
-
-                playbackJobs[sampleId] = scope.launch {
-                    delay(duration)
-                    // Check if we are still playing the same stream (user didn't stop and start again)
-                    if (activeStreamIds[sampleId] == streamId) {
-                        setPlayingState(sampleId, false)
-                        activeStreamIds.remove(sampleId)
-                    }
-                }
-            }
-        }
-    }
-
-    override fun stopSample(sampleId: Int) {
-        val streamId = activeStreamIds[sampleId] ?: return
-
-        // Cancel the auto-stop timer immediately so it doesn't fire later
-        playbackJobs[sampleId]?.cancel()
-
-        scope.launch {
-            val startVol = activeStreamVolumes[sampleId] ?: 1.0f
-            val steps = 10
-            val delayPerStep = 5L
-
-            for (i in 1..steps) {
-                val newVol = startVol * (1.0f - (i.toFloat() / steps))
-                soundPool.setVolume(streamId, newVol, newVol)
-                delay(delayPerStep)
+        // 2. Manage MediaPlayer (Main Thread)
+        withContext(Dispatchers.Main) {
+            // Toggle behavior: If playing, stop it.
+            if (_playingSampleIds.value.contains(sampleId)) {
+                stopSample(sampleId)
+                return@withContext
             }
 
-            soundPool.stop(streamId)
-            activeStreamIds.remove(sampleId)
-            activeStreamVolumes.remove(sampleId)
-            setPlayingState(sampleId, false)
-        }
-    }
+            // Stop any existing player for this slot to be safe
+            mediaPlayers[sampleId]?.let {
+                if (it.isPlaying) it.stop()
+                it.release()
+            }
+            mediaPlayers.remove(sampleId)
 
-    private fun setPlayingState(id: Int, playing: Boolean) {
-        _playingSampleIds.update { if (playing) it + id else it - id }
-    }
-
-    private fun loadSound(path: String) {
-        if (!loadedSoundIds.containsKey(path)) {
-            val id = soundPool.load(path, 1)
-            loadedSoundIds[path] = id
-            // Metadata extraction should be done in background if called from UI,
-            // but init calls this from Dispatchers.IO, so it's safe.
             try {
-                val ret = MediaMetadataRetriever()
-                ret.setDataSource(path)
-                sampleDurations[path] =
-                    ret.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                        ?.toLongOrNull() ?: 0L
-                ret.release()
+                val mp = MediaPlayer()
+                mp.setDataSource(file.absolutePath)
+                mp.prepare() // Synchronous prepare is safe for local files on Main in this context
+
+                val vol = sample.volume / 100f
+                mp.setVolume(vol, vol)
+                mp.isLooping = sample.loop
+
+                // Critical: Only stop UI when playback actually completes
+                mp.setOnCompletionListener { player ->
+                    player.release()
+                    mediaPlayers.remove(sampleId)
+                    setPlayingState(sampleId, false)
+                }
+
+                mp.start()
+                mediaPlayers[sampleId] = mp
+                setPlayingState(sampleId, true)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
 
+    override fun stopSample(sampleId: Int) {
+        mediaPlayers[sampleId]?.let {
+            try {
+                if (it.isPlaying) it.stop()
+                it.release()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        mediaPlayers.remove(sampleId)
+        setPlayingState(sampleId, false)
+    }
+
+    private fun setPlayingState(id: Int, playing: Boolean) {
+        _playingSampleIds.update { if (playing) it + id else it - id }
+    }
+
     override fun cleanup() {
-        soundPool.release()
+        mediaPlayers.values.forEach {
+            try {
+                if (it.isPlaying) it.stop()
+                it.release()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        mediaPlayers.clear()
     }
 
     private fun getDefaultSampleColors() = listOf("#008B8B", "#F50057", "#00C853", "#D500F9")
@@ -289,10 +224,13 @@ class SampleRepositoryImpl @Inject constructor(
         )
     }
 
+    // --- Audio Library Repository Implementation ---
+
     override fun observeLibrary() =
         audioLibraryDao.observeAllAudio().map { it.map { e -> e.toDomain() } }
 
     override suspend fun getLibraryItems() = audioLibraryDao.getAllAudio().map { it.toDomain() }
+
     override suspend fun deleteAudioFile(item: AudioLibraryItem) {
         val f = File(context.filesDir, item.filePath)
         if (f.exists()) f.delete()
@@ -300,6 +238,7 @@ class SampleRepositoryImpl @Inject constructor(
     }
 
     override fun getAudioFile(item: AudioLibraryItem) = File(context.filesDir, item.filePath)
+
     override suspend fun searchLibrary(query: String) =
         audioLibraryDao.searchAudio(query).map { it.toDomain() }
 
@@ -318,6 +257,7 @@ class SampleRepositoryImpl @Inject constructor(
                     ?.toLongOrNull() ?: 0L
                 ret.release()
             } catch (e: Exception) {
+                e.printStackTrace()
             }
 
             val entity = AudioLibraryEntity(

@@ -98,7 +98,9 @@ fun BottomBar(
             for (i in 0..3) {
                 val sample = samples.getOrNull(i)
                 val dbColor = sample?.color
-                val baseColor = if (!dbColor.isNullOrEmpty() && !dbColor.startsWith("#00")) {
+
+                // FIXED: Removed the startsWith("#00") check to allow all valid colors
+                val baseColor = if (!dbColor.isNullOrEmpty()) {
                     try {
                         Color(dbColor.toColorInt())
                     } catch (e: Exception) {
