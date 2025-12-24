@@ -51,7 +51,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.toColorInt
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 import com.set.patchchanger.ui.theme.ColorYellow
@@ -99,14 +98,17 @@ fun BottomBar(
                 val sample = samples.getOrNull(i)
                 val dbColor = sample?.color
 
-                // FIXED: Removed the startsWith("#00") check to allow all valid colors
+                // Robust Color Parsing using standard Android parser
                 val baseColor = if (!dbColor.isNullOrEmpty()) {
                     try {
-                        Color(dbColor.toColorInt())
+                        // Parses #RRGGBB or #AARRGGBB
+                        Color(android.graphics.Color.parseColor(dbColor.trim()))
                     } catch (e: Exception) {
                         defaultColors[i]
                     }
-                } else defaultColors[i]
+                } else {
+                    defaultColors[i]
+                }
 
                 val isPlaying = playingSamples.contains(sample?.id ?: -1)
 

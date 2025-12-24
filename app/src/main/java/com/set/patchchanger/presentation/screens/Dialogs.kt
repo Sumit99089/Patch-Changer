@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -56,6 +57,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -128,6 +130,7 @@ fun BankPageNameDialog(
     }
 }
 
+// --- MODIFIED EDIT SAMPLE DIALOG (FIXED COLOR ISSUE) ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditSampleDialog(
@@ -136,14 +139,15 @@ fun EditSampleDialog(
     onSave: (SamplePad) -> Unit,
     onLoadFile: () -> Unit,
     onSelectFromLibrary: () -> Unit,
-    onClearAudio: () -> Unit,
-    onEditColor: () -> Unit
+    onClearAudio: () -> Unit
 ) {
-    // MODIFIED: Added sample.name key to remember to update UI when file loads
+    // State to hold edits
     var name by remember(sample.name) { mutableStateOf(sample.name) }
-
     var volume by remember { mutableFloatStateOf(sample.volume.toFloat()) }
     var loop by remember { mutableStateOf(sample.loop) }
+    // FIX: Track the color locally inside the dialog
+    var selectedColor by remember { mutableStateOf(sample.color) }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(8.dp),
@@ -158,48 +162,99 @@ fun EditSampleDialog(
                     "Edit Sample",
                     style = MaterialTheme.typography.titleLarge
                 ); Spacer(Modifier.height(16.dp))
+
+                // Name Field
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Name") }); Spacer(Modifier.height(8.dp))
+
+                // File Buttons
                 Row {
                     Button(onClick = onLoadFile, Modifier.weight(1f)) { Text("File") }; Spacer(
                     Modifier.width(8.dp)
                 )
                     Button(onClick = onSelectFromLibrary, Modifier.weight(1f)) { Text("Lib") }
                 }
-                Spacer(Modifier.height(8.dp)); Button(
-                onClick = onEditColor,
-                Modifier.fillMaxWidth()
-            ) { Text("Color") }
-                Spacer(Modifier.height(8.dp)); Text("Vol: ${volume.toInt()}"); Slider(
+
+                Spacer(Modifier.height(16.dp))
+
+                // INTEGRATED COLOR PICKER (Replaces separate dialog)
+                Text("Pad Color", fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(4),
+                    modifier = Modifier.height(160.dp), // Fixed height for grid
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(getModxColors()) { modxColor ->
+                        val colorInt = try {
+                            android.graphics.Color.parseColor(modxColor.hex)
+                        } catch (e: Exception) { android.graphics.Color.GRAY }
+
+                        val isSelected = selectedColor.equals(modxColor.hex, ignoreCase = true)
+
+                        Box(
+                            Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(colorInt))
+                                .border(
+                                    width = if (isSelected) 3.dp else 0.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                    shape = CircleShape
+                                )
+                                .clickable { selectedColor = modxColor.hex }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Volume
+                Text("Vol: ${volume.toInt()}"); Slider(
                 value = volume,
                 onValueChange = { volume = it },
                 valueRange = 0f..100f
             )
+
+                // Loop
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(
                         checked = loop,
                         onCheckedChange = { loop = it }); Text("Loop")
                 }
-                Spacer(Modifier.height(16.dp)); Button(
-                onClick = onClearAudio,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) { Text("Clear") }
-                Spacer(Modifier.height(16.dp)); Button(onClick = {
-                onSave(
-                    sample.copy(
-                        name = name,
-                        volume = volume.toInt(),
-                        loop = loop
-                    )
-                ); onDismiss()
-            }) { Text("OK") }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Clear Audio Button
+                Button(
+                    onClick = onClearAudio,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Clear Audio") }
+
+                Spacer(Modifier.height(16.dp))
+
+                // OK Button
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        onSave(
+                            sample.copy(
+                                name = name,
+                                volume = volume.toInt(),
+                                loop = loop,
+                                color = selectedColor // USES THE NEW COLOR
+                            )
+                        ); onDismiss()
+                    }) { Text("OK") }
             }
         }
     }
 }
 
+// Kept for EditSlotDialog usage
 @Composable
 fun ColorPickerDialog(onDismiss: () -> Unit, onColorSelected: (String) -> Unit) {
     val colors = getModxColors()
@@ -222,7 +277,7 @@ fun ColorPickerDialog(onDismiss: () -> Unit, onColorSelected: (String) -> Unit) 
                             Modifier
                                 .padding(4.dp)
                                 .aspectRatio(1f)
-                                .background(Color(c.hex.toColorInt()), CircleShape)
+                                .background(Color(android.graphics.Color.parseColor(c.hex)), CircleShape)
                                 .clickable { onColorSelected(c.hex) })
                     }
                 }
@@ -256,7 +311,7 @@ fun SwapDialog(
                 ) {
                     items(currentPageSlots.filter { it.id != sourceSlot.id }) { slot ->
                         val bgColor = try {
-                            Color(slot.color.toColorInt())
+                            Color(android.graphics.Color.parseColor(slot.color))
                         } catch (e: Exception) {
                             MaterialTheme.colorScheme.surfaceVariant
                         }
@@ -465,7 +520,7 @@ fun EditSlotDialog(
                                     Modifier.weight(1f),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = try {
-                                            Color(slotColorHex.toColorInt())
+                                            Color(android.graphics.Color.parseColor(slotColorHex))
                                         } catch (e: Exception) {
                                             MaterialTheme.colorScheme.primary
                                         }
@@ -736,8 +791,9 @@ fun HandleDialogs(
             { viewModel.onEvent(MainEvent.UpdateSample(it)) },
             { viewModel.onEvent(MainEvent.LoadSampleFile) },
             { viewModel.onEvent(MainEvent.ShowAudioLibrary(true, sample.id)) },
-            { viewModel.onEvent(MainEvent.ClearSampleAudio(sample.id)) },
-            { viewModel.onEvent(MainEvent.ShowSampleColorDialog(sample)) })
+            { viewModel.onEvent(MainEvent.ClearSampleAudio(sample.id)) }
+            // onEditColor is REMOVED as it's now handled internally
+        )
     }
     if (uiState.showAudioLibrary) AudioLibraryDialog(
         uiState.audioLibrary,
@@ -777,20 +833,5 @@ fun HandleDialogs(
             viewModel::onEvent,
             { viewModel.onEvent(MainEvent.ShowSlotColorDialog(null)) })
     }
-    uiState.sampleToEditColor?.let { sample ->
-        ColorPickerDialog(
-            {
-                viewModel.onEvent(
-                    MainEvent.ShowSampleColorDialog(
-                        null
-                    )
-                )
-            },
-            { color ->
-                viewModel.onEvent(MainEvent.UpdateSample(sample.copy(color = color))); viewModel.onEvent(
-                MainEvent.ShowSampleColorDialog(null)
-            )
-            }
-        )
-    }
+    // REMOVED: uiState.sampleToEditColor block is no longer needed
 }

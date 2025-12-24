@@ -133,7 +133,7 @@ fun AppTopBar(
                 decorationBox = { inner ->
                     Box {
                         if (uiState.searchQuery.isEmpty()) Text(
-                            "Search all patches...",
+                            "Search ",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp
                         )
