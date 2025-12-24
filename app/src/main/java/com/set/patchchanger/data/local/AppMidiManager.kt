@@ -47,19 +47,23 @@ class AppMidiManager @Inject constructor(
      */
     private val deviceCallback = object : MidiManager.DeviceCallback() {
         override fun onDeviceAdded(device: MidiDeviceInfo?) {
-            // ***************************************************************
-            // ** FIX #2: Auto-Connect on Device Plug-in **
-            // This is the implementation for auto-connecting when a new
-            // device is plugged in, just like the HTML's `onstatechange`.
-            // We only try to connect if we are not already connected.
-            // ***************************************************************
-            if (_connectionState.value is MidiConnectionState.Disconnected) {
-                // Pass the specific device info to the connect function.
+            device ?: return
+
+            // Filter out 'Midi Through' and devices without input ports (we can't send data to them)
+            val name = device.properties.getString(MidiDeviceInfo.PROPERTY_NAME)
+            if (name?.contains("through", ignoreCase = true) == true) return
+            if (device.inputPortCount == 0) return
+
+            // Auto-Connect on Device Plug-in
+            // Connect if we are Disconnected OR in an Error state (failed previous attempt)
+            // This ensures if a previous connection failed (Error state), replugging works.
+            if (_connectionState.value !is MidiConnectionState.Connected) {
                 connect(device)
             }
         }
 
         override fun onDeviceRemoved(device: MidiDeviceInfo?) {
+            // Only disconnect if the removed device is the one we are currently connected to
             if (device?.id == midiDevice?.info?.id) {
                 disconnect()
             }

@@ -268,8 +268,8 @@ fun AppTopBar(
             Text(
                 text = if (midiState is MidiConnectionState.Connected) midiState.deviceName else "Not Connected",
                 color = if (midiState is MidiConnectionState.Connected) ColorGreen else ColorRed,
-                fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable { onEvent(MainEvent.ConnectMidi) }
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
             )
 
             // MIDI Channel
