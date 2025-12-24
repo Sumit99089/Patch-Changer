@@ -7,8 +7,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
@@ -25,8 +25,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,8 +43,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -251,11 +252,11 @@ fun PatchSlotCard(
         MaterialTheme.colorScheme.surfaceVariant
     }
 
-    // 2. Animation for Blinking Border (Using bgColor instead of Green)
+    // 2. Animation for Blinking Border
     val infiniteTransition = rememberInfiniteTransition(label = "grid_blink")
     val blinkColor by infiniteTransition.animateColor(
-        initialValue = bgColor.copy(alpha = 0.3f), // Dim version of slot color
-        targetValue = bgColor,                     // Full slot color
+        initialValue = bgColor.copy(alpha = 0.3f),
+        targetValue = bgColor,
         animationSpec = infiniteRepeatable(
             animation = tween(400, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
@@ -263,68 +264,71 @@ fun PatchSlotCard(
         label = "border_blink"
     )
 
-    // 3. Logic for Border and Structure
+    // 3. Logic for Border Width and Color
     val isPlaying = playingSampleIds.contains(slot.assignedSample)
 
-    // Logic for border visibility and color
-    val borderStroke = when {
-        isDropTarget -> BorderStroke(3.dp, ColorYellow)
-        // If Selected & Playing: Blink the slot color
-        slot.selected && isPlaying && !isEditMode -> BorderStroke(4.dp, blinkColor)
-        // If just Selected: Static slot color border
-        slot.selected && !isEditMode -> BorderStroke(4.dp, bgColor)
-        // Edit Mode
-        isEditMode -> BorderStroke(1.dp, Color.White.copy(alpha = 0.3f))
-        else -> null
+    val (borderColor, borderWidth) = when {
+        isDropTarget -> ColorYellow to 3.dp
+        slot.selected && isPlaying && !isEditMode -> blinkColor to 4.dp
+        slot.selected && !isEditMode -> bgColor to 4.dp
+        isEditMode -> Color.White.copy(alpha = 0.3f) to 1.dp
+        else -> Color.Transparent to 0.dp
     }
 
-    // 4. Scale Animation
+    // 4. Calculate total padding needed for the "Black Gap" effect
+    // If there is a visible border, we add a 3dp black gap.
+    val gap = if (borderWidth > 0.dp) 3.dp else 0.dp
+    val totalContentInset = borderWidth + gap
+
+    // 5. Scale Animation
     val scale by animateFloatAsState(
         targetValue = if (slot.selected && !isEditMode) 1.02f else 1f,
         label = "scale"
     )
 
-    // Outer Card: Handles the Outer Border and the Black Gap
-    Card(
-        modifier = modifier.graphicsLayer {
-            alpha = if (isBeingDragged) 0f else 1f
-            scaleX = scale
-            scaleY = scale
-        },
-        // IMPORTANT: Set container color to Black to create the "gap" effect
-        colors = CardDefaults.cardColors(containerColor = Color.Black),
-        border = borderStroke,
-        shape = RoundedCornerShape(6.dp)
+    // REPLACED Card with Box for precise alignment control
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                alpha = if (isBeingDragged) 0f else 1f
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black) // The "Gap" color
+            // Draw border on the Outer Box
+            .border(
+                width = borderWidth,
+                color = borderColor,
+                shape = RoundedCornerShape(6.dp)
+            )
     ) {
-        // Inner Box: The actual colored button content
-        // We add padding here to reveal the Black container color behind (Creating the black margin)
+        // Inner Box: The actual button content
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // If there is an active border (selected/playing), show the black gap.
-                // Otherwise, fill nicely or keep small gap for consistency.
-                .padding(if (borderStroke != null) 3.dp else 0.dp)
-                .clip(RoundedCornerShape(4.dp)) // Slightly tighter radius for inner box
+                // Apply padding symmetrically to create the gap
+                .padding(totalContentInset)
+                .clip(RoundedCornerShape(4.dp))
                 .background(bgColor),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center // Ensures text stays perfectly centered
         ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = slot.getDisplayName(),
-                    style = MaterialTheme.typography.headlineMedium,
+            Text(
+                text = slot.getDisplayName(),
+                // Use explicit style to prevent inheritance of large line-heights from HeadlineMedium
+                style = TextStyle(
+                    fontSize = 18.sp,
+                    lineHeight = 22.sp, // Tight line height prevents vertical shifting
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
                     textAlign = TextAlign.Center,
-                    fontSize = 18.sp,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-            }
+                    platformStyle = PlatformTextStyle(
+                        includeFontPadding = false // Removes native Android font padding for strict centering
+                    )
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
