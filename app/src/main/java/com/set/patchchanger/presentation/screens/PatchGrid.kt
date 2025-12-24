@@ -8,6 +8,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +37,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -242,17 +244,18 @@ fun PatchSlotCard(
     isDropTarget: Boolean,
     modifier: Modifier = Modifier
 ) {
+    // 1. Determine base color for the slot
     val bgColor = try {
         Color(slot.color.toColorInt())
     } catch (e: Exception) {
         MaterialTheme.colorScheme.surfaceVariant
     }
 
-    // 1. Animation for Blinking Border (Green)
+    // 2. Animation for Blinking Border (Using bgColor instead of Green)
     val infiniteTransition = rememberInfiniteTransition(label = "grid_blink")
-    val blinkBorderColor by infiniteTransition.animateColor(
-        initialValue = Color.Transparent, // Start invisible or subtle
-        targetValue = Color(0xFF39FF14),  // Bright Green (Matches Sample Buttons)
+    val blinkColor by infiniteTransition.animateColor(
+        initialValue = bgColor.copy(alpha = 0.3f), // Dim version of slot color
+        targetValue = bgColor,                     // Full slot color
         animationSpec = infiniteRepeatable(
             animation = tween(400, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
@@ -260,54 +263,68 @@ fun PatchSlotCard(
         label = "border_blink"
     )
 
-    // 2. Logic to choose the correct BorderStroke
+    // 3. Logic for Border and Structure
     val isPlaying = playingSampleIds.contains(slot.assignedSample)
 
+    // Logic for border visibility and color
     val borderStroke = when {
-        isDropTarget -> BorderStroke(3.dp, ColorYellow) // Drag target highlight
-        slot.selected && isPlaying && !isEditMode -> BorderStroke(
-            4.dp,
-            blinkBorderColor
-        ) // Selected & Playing (Blinking)
-        slot.selected && !isEditMode -> BorderStroke(
-            4.dp,
-            Color(slot.color.toColorInt())
-        ) // Static Selection
-        isEditMode -> BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)) // Edit Mode outline
+        isDropTarget -> BorderStroke(3.dp, ColorYellow)
+        // If Selected & Playing: Blink the slot color
+        slot.selected && isPlaying && !isEditMode -> BorderStroke(4.dp, blinkColor)
+        // If just Selected: Static slot color border
+        slot.selected && !isEditMode -> BorderStroke(4.dp, bgColor)
+        // Edit Mode
+        isEditMode -> BorderStroke(1.dp, Color.White.copy(alpha = 0.3f))
         else -> null
     }
 
-    // 3. Scale Animation on selection
+    // 4. Scale Animation
     val scale by animateFloatAsState(
         targetValue = if (slot.selected && !isEditMode) 1.02f else 1f,
         label = "scale"
     )
 
+    // Outer Card: Handles the Outer Border and the Black Gap
     Card(
         modifier = modifier.graphicsLayer {
             alpha = if (isBeingDragged) 0f else 1f
             scaleX = scale
             scaleY = scale
         },
-        colors = CardDefaults.cardColors(containerColor = bgColor),
+        // IMPORTANT: Set container color to Black to create the "gap" effect
+        colors = CardDefaults.cardColors(containerColor = Color.Black),
         border = borderStroke,
         shape = RoundedCornerShape(6.dp)
     ) {
+        // Inner Box: The actual colored button content
+        // We add padding here to reveal the Black container color behind (Creating the black margin)
         Box(
-            Modifier
+            modifier = Modifier
                 .fillMaxSize()
-                .padding(4.dp), contentAlignment = Alignment.Center
+                // If there is an active border (selected/playing), show the black gap.
+                // Otherwise, fill nicely or keep small gap for consistency.
+                .padding(if (borderStroke != null) 3.dp else 0.dp)
+                .clip(RoundedCornerShape(4.dp)) // Slightly tighter radius for inner box
+                .background(bgColor),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = slot.getDisplayName(),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                fontSize = 18.sp,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = slot.getDisplayName(),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    fontSize = 18.sp,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

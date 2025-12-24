@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple // UPDATED IMPORT
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -106,7 +108,7 @@ fun AppTopBar(
 
         Spacer(Modifier.width(24.dp))
 
-        // 2. Search (Integrated Dropdown)
+        // 2. Search
         Box(modifier = Modifier.weight(1f)) {
             var isFocused by remember { mutableStateOf(false) }
 
@@ -142,15 +144,15 @@ fun AppTopBar(
                 }
             )
 
-            // HTML-Style Dropdown Results
+            // Results Popup
             if (uiState.searchQuery.isNotBlank() && uiState.searchResults.isNotEmpty()) {
                 Popup(
                     alignment = Alignment.TopStart,
-                    offset = IntOffset(0, 100) // Rough approx for 36dp + margin
+                    offset = IntOffset(0, 100)
                 ) {
                     Card(
                         modifier = Modifier
-                            .fillMaxWidth() // Matches parent box width (flex: 2 in HTML)
+                            .fillMaxWidth()
                             .heightIn(max = 300.dp)
                             .border(1.dp, outlineColor, RoundedCornerShape(0.dp, 0.dp, 6.dp, 6.dp)),
                         elevation = CardDefaults.cardElevation(8.dp),
@@ -198,7 +200,6 @@ fun AppTopBar(
                     label = "blink_color"
                 )
 
-                // MINUS BUTTON: Blinks ONLY if negative
                 val minusBg =
                     if (settings.currentTranspose < 0) blinkColor else MaterialTheme.colorScheme.surfaceVariant
 
@@ -240,7 +241,6 @@ fun AppTopBar(
                     )
                 }
 
-                // PLUS BUTTON: Blinks ONLY if positive
                 val plusBg =
                     if (settings.currentTranspose > 0) blinkColor else MaterialTheme.colorScheme.surfaceVariant
 
@@ -264,10 +264,30 @@ fun AppTopBar(
                 }
             }
 
-            // MIDI Status
+            // MIDI Status with Double Blinking logic
+            val midiTransition = rememberInfiniteTransition(label = "midi_blink")
+            val midiBlinkColor by midiTransition.animateColor(
+                initialValue = Color.Transparent,
+                targetValue = if (midiState is MidiConnectionState.Connected) ColorGreen else ColorRed, // Blinks to respective color
+                animationSpec = infiniteRepeatable(
+                    animation = tween(800),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "midi_state_blink"
+            )
+
+            // We base the color purely on animation for blinking effect
+            val finalMidiColor = if (midiState is MidiConnectionState.Connected) {
+                // Connected: Blink Green
+                midiBlinkColor
+            } else {
+                // Disconnected: Blink Red
+                midiBlinkColor
+            }
+
             Text(
                 text = if (midiState is MidiConnectionState.Connected) midiState.deviceName else "Not Connected",
-                color = if (midiState is MidiConnectionState.Connected) ColorGreen else ColorRed,
+                color = finalMidiColor,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -277,7 +297,7 @@ fun AppTopBar(
             Box {
                 Button(
                     onClick = { midiMenuExpanded = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = if (midiState is MidiConnectionState.Connected) ColorGreen else ColorRed),
+                    colors = ButtonDefaults.buttonColors(containerColor = finalMidiColor), // Apply blinking color to button bg too
                     shape = RoundedCornerShape(4.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp),
                     modifier = Modifier.height(30.dp)
@@ -330,7 +350,7 @@ fun SearchResultItem(result: SearchResult, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 10.dp), // Matched HTML Padding
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -343,7 +363,7 @@ fun SearchResultItem(result: SearchResult, onClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                "Bank: ${result.bankName}  |  Page: ${result.pageName} / Slot ${result.slot.getSlotNumber()}", // Matched HTML format
+                "Bank: ${result.bankName}  |  Page: ${result.pageName} / Slot ${result.slot.getSlotNumber()}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
@@ -402,12 +422,20 @@ fun SelectorItem(
     val surfaceColor = MaterialTheme.colorScheme.surface
     val outlineColor = MaterialTheme.colorScheme.outline
 
+    // Define the SkyBlue Ripple using the new Material3 API
+    // REPLACED rememberRipple with ripple()
+    val skyBlueRipple = ripple(color = Color(0xFF87CEEB))
+
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(4.dp),
             modifier = Modifier
                 .size(38.dp)
-                .clickable(onClick = onPrev),
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = skyBlueRipple, // Applying the SkyBlue click effect
+                    onClick = onPrev
+                ),
             border = BorderStroke(1.dp, outlineColor)
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -454,7 +482,11 @@ fun SelectorItem(
             color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(4.dp),
             modifier = Modifier
                 .size(38.dp)
-                .clickable(onClick = onNext),
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = skyBlueRipple, // Applying the SkyBlue click effect
+                    onClick = onNext
+                ),
             border = BorderStroke(1.dp, outlineColor)
         ) {
             Box(contentAlignment = Alignment.Center) {
