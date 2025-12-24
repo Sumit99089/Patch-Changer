@@ -81,7 +81,8 @@ fun MainScreenContent(
             when (event) {
                 is UiEvent.ShowMessage -> snackbarHostState.showSnackbar(event.message)
                 is UiEvent.RequestFilePicker -> audioPickerLauncher.launch("audio/*")
-                is UiEvent.RequestSaveFile -> saveFileLauncher.launch("modx-live-data.json")
+                // Updated default filename as requested
+                is UiEvent.RequestSaveFile -> saveFileLauncher.launch("Live Set Patch Changer Backup.json")
                 is UiEvent.RequestLoadFile -> loadFileLauncher.launch(arrayOf("application/json"))
             }
         }

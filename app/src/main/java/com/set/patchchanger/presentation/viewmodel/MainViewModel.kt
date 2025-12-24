@@ -203,15 +203,8 @@ class MainViewModel @Inject constructor(
                 }
 
                 is MainEvent.RequestExportData -> {
-                    val timestamp =
-                        SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                    val filename = "modx_backup_$timestamp.json"
-                    val jsonData = exportDataUseCase()
-                    if (fileManager.saveJsonToDocuments(filename, jsonData)) {
-                        _events.emit(UiEvent.ShowMessage("Saved to Documents/PatchChanger/$filename"))
-                    } else {
-                        _events.emit(UiEvent.RequestSaveFile)
-                    }
+                    // Always request user to pick a location and name for the backup
+                    _events.emit(UiEvent.RequestSaveFile)
                 }
 
                 is MainEvent.RequestImportData -> _events.emit(UiEvent.RequestLoadFile)
