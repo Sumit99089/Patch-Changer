@@ -369,6 +369,8 @@ fun EditSlotDialog(
     var displayNameType by remember(slot.displayNameType) { mutableStateOf(slot.displayNameType) }
     var assignedSample by remember(slot.assignedSample) { mutableIntStateOf(slot.assignedSample) }
     var slotColorHex by remember(slot.color) { mutableStateOf(slot.color) }
+
+    // Kept in state to preserve the value, even though the UI is removed
     var volume by remember(slot.volume) { mutableFloatStateOf(slot.volume.toFloat()) }
 
     var perfCategory by remember { mutableStateOf("For Montage (Single)") }
@@ -487,16 +489,7 @@ fun EditSlotDialog(
                         )
                         Spacer(Modifier.height(12.dp))
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Volume: ${volume.toInt()}", modifier = Modifier.width(80.dp))
-                            Slider(
-                                value = volume,
-                                onValueChange = { volume = it },
-                                valueRange = 0f..127f,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Spacer(Modifier.height(8.dp))
+                        // [REMOVED] Volume Slider UI was here
 
                         var sampleExpanded by remember { mutableStateOf(false) }
                         Box(modifier = Modifier.fillMaxWidth()) {
@@ -665,7 +658,7 @@ fun EditSlotDialog(
                             displayNameType = displayNameType,
                             assignedSample = assignedSample,
                             color = slotColorHex,
-                            volume = volume.toInt(),
+                            volume = volume.toInt(), // Preserves existing volume
                             performanceName = uiState.slotToEditColor?.performanceName ?: slot.performanceName,
                             msb = uiState.slotToEditColor?.msb ?: slot.msb,
                             lsb = uiState.slotToEditColor?.lsb ?: slot.lsb,

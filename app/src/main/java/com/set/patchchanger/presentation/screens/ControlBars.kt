@@ -287,7 +287,7 @@ fun AppTopBar(
 
             Text(
                 text = if (midiState is MidiConnectionState.Connected) midiState.deviceName else "Not Connected",
-                color = finalMidiColor,
+                color = if (midiState is MidiConnectionState.Connected) Color.Green else Color.Red,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
             )
