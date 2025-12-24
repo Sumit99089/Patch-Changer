@@ -357,7 +357,6 @@ fun SwapDialog(
     }
 }
 
-// --- MASTER EDIT SLOT DIALOG (REFACTORED) ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditSlotDialog(
@@ -545,7 +544,10 @@ fun EditSlotDialog(
                                     shape = RoundedCornerShape(8.dp)
                                 ) { Text("Copy") }
                                 Button(
-                                    onClick = { onEvent(MainEvent.ShowPasteConfirmDialog(slot)) },
+                                    onClick = {
+                                        onEvent(MainEvent.ShowPasteConfirmDialog(slot))
+                                        onDismiss() // Close dialog to prevent stale state overwrite
+                                    },
                                     Modifier.weight(1f),
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
                                     shape = RoundedCornerShape(8.dp)
@@ -553,13 +555,19 @@ fun EditSlotDialog(
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(
-                                    onClick = { onEvent(MainEvent.ShowSwapDialog(slot)) },
+                                    onClick = {
+                                        onEvent(MainEvent.ShowSwapDialog(slot))
+                                        onDismiss() // Close dialog to prevent stale state overwrite
+                                    },
                                     Modifier.weight(1f),
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
                                     shape = RoundedCornerShape(8.dp)
                                 ) { Text("Swap") }
                                 Button(
-                                    onClick = { onEvent(MainEvent.ShowClearConfirmDialog(slot)) },
+                                    onClick = {
+                                        onEvent(MainEvent.ShowClearConfirmDialog(slot))
+                                        onDismiss() // Close dialog to prevent stale state overwrite
+                                    },
                                     Modifier.weight(1f),
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
                                     shape = RoundedCornerShape(8.dp)
