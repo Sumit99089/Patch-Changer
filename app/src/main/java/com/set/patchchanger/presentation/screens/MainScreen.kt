@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -95,7 +97,11 @@ fun MainScreenContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(
+                    bottom = padding.calculateBottomPadding(),
+                    start = padding.calculateStartPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
+                    end = padding.calculateEndPadding(androidx.compose.ui.unit.LayoutDirection.Ltr)
+                )
                 .background(MaterialTheme.colorScheme.background)
         ) {
             when (uiState) {
