@@ -81,7 +81,6 @@ fun MainScreenContent(
             when (event) {
                 is UiEvent.ShowMessage -> snackbarHostState.showSnackbar(event.message)
                 is UiEvent.RequestFilePicker -> audioPickerLauncher.launch("audio/*")
-                // Updated default filename as requested
                 is UiEvent.RequestSaveFile -> saveFileLauncher.launch("Live Set Patch Changer Backup.json")
                 is UiEvent.RequestLoadFile -> loadFileLauncher.launch(arrayOf("application/json"))
             }
@@ -102,7 +101,7 @@ fun MainScreenContent(
             when (uiState) {
                 is MainUiState.Success -> {
                     Column(Modifier.fillMaxSize()) {
-                        // 1. Top Bar
+                        // 1. Top Bar (Responsive)
                         AppTopBar(uiState, viewModel::onEvent, isEditMode) {
                             isEditMode = !isEditMode
                         }
@@ -116,29 +115,16 @@ fun MainScreenContent(
                                     patchData = uiState.patchData,
                                     currentBankIndex = uiState.settings.currentBankIndex,
                                     currentPageIndex = uiState.settings.currentPageIndex,
-                                    playingSampleIds = uiState.playingSampleIds, // Pass Playing States!
+                                    playingSampleIds = uiState.playingSampleIds,
                                     isEditMode = isEditMode,
                                     onSlotClick = { slot ->
-                                        viewModel.onEvent(
-                                            MainEvent.SelectSlot(
-                                                slot.id
-                                            )
-                                        )
+                                        viewModel.onEvent(MainEvent.SelectSlot(slot.id))
                                     },
                                     onSlotEdit = { slot ->
-                                        viewModel.onEvent(
-                                            MainEvent.ShowSlotColorDialog(
-                                                slot
-                                            )
-                                        )
+                                        viewModel.onEvent(MainEvent.ShowSlotColorDialog(slot))
                                     },
                                     onSlotSwap = { sourceId, targetId ->
-                                        viewModel.onEvent(
-                                            MainEvent.SwapSlots(
-                                                sourceId,
-                                                targetId
-                                            )
-                                        )
+                                        viewModel.onEvent(MainEvent.SwapSlots(sourceId, targetId))
                                     },
                                     modifier = Modifier
                                         .weight(1f)
@@ -148,7 +134,7 @@ fun MainScreenContent(
                             }
                         }
 
-                        // 3. Bottom Bar
+                        // 3. Bottom Bar (Responsive)
                         BottomBar(uiState, viewModel::onEvent, isEditMode)
                     }
 

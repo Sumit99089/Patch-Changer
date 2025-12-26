@@ -16,6 +16,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -27,7 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -53,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
-import com.set.patchchanger.ui.theme.ColorYellow
 import com.set.patchchanger.ui.theme.SampleGreen
 import com.set.patchchanger.ui.theme.SamplePink
 import com.set.patchchanger.ui.theme.SamplePurple
@@ -65,16 +65,32 @@ fun BottomBar(
     onEvent: (MainEvent) -> Unit,
     isEditMode: Boolean
 ) {
-    val samples = uiState.samples
-    val playingSamples = uiState.playingSampleIds
     val backgroundColor = MaterialTheme.colorScheme.background
 
-    Row(
-        Modifier
+    BoxWithConstraints(
+        modifier = Modifier
             .fillMaxWidth()
-            .height(60.dp)
             .background(backgroundColor.copy(alpha = 0.9f))
-            .padding(8.dp),
+            .padding(8.dp)
+    ) {
+        if (maxWidth < 600.dp) {
+            BottomBarPortrait(uiState, onEvent, isEditMode)
+        } else {
+            BottomBarLandscape(uiState, onEvent, isEditMode)
+        }
+    }
+}
+
+@Composable
+fun BottomBarLandscape(
+    uiState: MainUiState.Success,
+    onEvent: (MainEvent) -> Unit,
+    isEditMode: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -92,76 +108,102 @@ fun BottomBar(
         Spacer(Modifier.width(8.dp))
 
         // Sample Pads
-        val defaultColors = listOf(SampleTeal, SamplePink, SampleGreen, SamplePurple)
         Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            for (i in 0..3) {
-                val sample = samples.getOrNull(i)
-                val dbColor = sample?.color
-
-                // Robust Color Parsing using standard Android parser
-                val baseColor = if (!dbColor.isNullOrEmpty()) {
-                    try {
-                        // Parses #RRGGBB or #AARRGGBB
-                        Color(android.graphics.Color.parseColor(dbColor.trim()))
-                    } catch (e: Exception) {
-                        defaultColors[i]
-                    }
-                } else {
-                    defaultColors[i]
-                }
-
-                val isPlaying = playingSamples.contains(sample?.id ?: -1)
-
-                SampleButton(
-                    name = sample?.name ?: "S${i + 1}",
-                    baseColor = baseColor,
-                    isPlaying = isPlaying,
-                    isEditMode = isEditMode,
-                    onClick = { if (sample != null) onEvent(MainEvent.TriggerSample(sample.id)) },
-                    onLongClick = {
-                        if (sample != null) onEvent(MainEvent.ShowEditSampleDialog(sample))
-                    }
-                )
-            }
+            SamplePadsGroup(uiState, onEvent, isEditMode)
         }
 
         Spacer(Modifier.width(8.dp))
 
-        // Auto-Sync Indicator
-        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center) {
-            val infiniteTransition = rememberInfiniteTransition(label = "sync_pulse")
-            val syncColor by infiniteTransition.animateColor(
-                initialValue = ColorYellow,
-                targetValue = ColorYellow.copy(alpha = 0.5f),
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1000, easing = LinearEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "syncPulse"
-            )
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(syncColor)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    "Auto-Sync Ready",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        // Right Controls
+        // Right Controls (Theme)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ControlButton(Icons.Default.Palette) { onEvent(MainEvent.CycleTheme) }
         }
     }
 }
+
+@Composable
+fun BottomBarPortrait(
+    uiState: MainUiState.Success,
+    onEvent: (MainEvent) -> Unit,
+    isEditMode: Boolean
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Row 1: Sample Pads (Give them full width priority)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SamplePadsGroup(uiState, onEvent, isEditMode)
+        }
+
+        // Row 2: Data Buttons + Theme (Split space)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                DataButton("Save", Icons.Default.Save) { onEvent(MainEvent.RequestExportData) }
+                DataButton("Load", Icons.Default.FolderOpen) { onEvent(MainEvent.RequestImportData) }
+                DataButton(
+                    "Reset",
+                    Icons.Default.Close,
+                    isDestructive = true
+                ) { onEvent(MainEvent.ShowResetDialog(true)) }
+            }
+
+            ControlButton(Icons.Default.Palette) { onEvent(MainEvent.CycleTheme) }
+        }
+    }
+}
+
+@Composable
+fun RowScope.SamplePadsGroup(
+    uiState: MainUiState.Success,
+    onEvent: (MainEvent) -> Unit,
+    isEditMode: Boolean
+) {
+    val samples = uiState.samples
+    val playingSamples = uiState.playingSampleIds
+    val defaultColors = listOf(SampleTeal, SamplePink, SampleGreen, SamplePurple)
+
+    for (i in 0..3) {
+        val sample = samples.getOrNull(i)
+        val dbColor = sample?.color
+
+        // Robust Color Parsing
+        val baseColor = if (!dbColor.isNullOrEmpty()) {
+            try {
+                Color(android.graphics.Color.parseColor(dbColor.trim()))
+            } catch (e: Exception) {
+                defaultColors[i]
+            }
+        } else {
+            defaultColors[i]
+        }
+
+        val isPlaying = playingSamples.contains(sample?.id ?: -1)
+
+        SampleButton(
+            name = sample?.name ?: "S${i + 1}",
+            baseColor = baseColor,
+            isPlaying = isPlaying,
+            isEditMode = isEditMode,
+            onClick = { if (sample != null) onEvent(MainEvent.TriggerSample(sample.id)) },
+            onLongClick = {
+                if (sample != null) onEvent(MainEvent.ShowEditSampleDialog(sample))
+            }
+        )
+    }
+}
+
 
 @Composable
 fun DataButton(

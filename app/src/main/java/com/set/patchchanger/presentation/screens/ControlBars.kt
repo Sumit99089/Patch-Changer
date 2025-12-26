@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -41,7 +43,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.ripple // UPDATED IMPORT
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -75,101 +77,46 @@ fun AppTopBar(
     isEditMode: Boolean,
     onToggleEdit: () -> Unit
 ) {
-    val midiState = uiState.midiState
-    val settings = uiState.settings
     val surfaceColor = MaterialTheme.colorScheme.surface
     val outlineColor = MaterialTheme.colorScheme.outline
 
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(surfaceColor)
+            .border(width = 1.dp, color = outlineColor)
+    ) {
+        // Breakpoint for Portrait mode (less than 600dp width usually implies phone portrait)
+        if (maxWidth < 600.dp) {
+            AppTopBarPortrait(uiState, onEvent, isEditMode, onToggleEdit)
+        } else {
+            AppTopBarLandscape(uiState, onEvent, isEditMode, onToggleEdit)
+        }
+    }
+}
+
+@Composable
+fun AppTopBarLandscape(
+    uiState: MainUiState.Success,
+    onEvent: (MainEvent) -> Unit,
+    isEditMode: Boolean,
+    onToggleEdit: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .background(surfaceColor)
-            .border(width = 1.dp, color = outlineColor)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 1. Title
-        Column(modifier = Modifier.wrapContentWidth()) {
-            Text(
-                "Sonic Grid",
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                letterSpacing = 0.5.sp
-            )
-            Text(
-                "Live Set Patch Changer",
-                modifier = Modifier.align(Alignment.End),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                fontSize = 12.5.sp
-            )
-        }
+        TopBarTitle()
 
         Spacer(Modifier.width(24.dp))
 
         // 2. Search
         Box(modifier = Modifier.weight(1f)) {
-            var isFocused by remember { mutableStateOf(false) }
-
-            BasicTextField(
-                value = uiState.searchQuery,
-                onValueChange = { onEvent(MainEvent.UpdateSearchQuery(it)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(36.dp)
-                    .background(MaterialTheme.colorScheme.background, RoundedCornerShape(4.dp))
-                    .border(
-                        1.dp,
-                        if (isFocused) Color(0xFF448AFF) else outlineColor,
-                        RoundedCornerShape(4.dp)
-                    )
-                    .onFocusChanged { isFocused = it.isFocused }
-                    .padding(horizontal = 6.dp, vertical = 8.dp),
-                textStyle = TextStyle(
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onBackground
-                ),
-                singleLine = true,
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                decorationBox = { inner ->
-                    Box {
-                        if (uiState.searchQuery.isEmpty()) Text(
-                            "Search ",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp
-                        )
-                        inner()
-                    }
-                }
-            )
-
-            // Results Popup
-            if (uiState.searchQuery.isNotBlank() && uiState.searchResults.isNotEmpty()) {
-                Popup(
-                    alignment = Alignment.TopStart,
-                    offset = IntOffset(0, 100)
-                ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 300.dp)
-                            .border(1.dp, outlineColor, RoundedCornerShape(0.dp, 0.dp, 6.dp, 6.dp)),
-                        elevation = CardDefaults.cardElevation(8.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        shape = RoundedCornerShape(0.dp, 0.dp, 6.dp, 6.dp)
-                    ) {
-                        LazyColumn {
-                            items(uiState.searchResults) { result ->
-                                SearchResultItem(
-                                    result = result,
-                                    onClick = { onEvent(MainEvent.GoToSearchResult(result)) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            TopBarSearch(uiState, onEvent)
         }
 
         Spacer(Modifier.width(24.dp))
@@ -179,170 +126,311 @@ fun AppTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Transpose
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(36.dp)) {
-                Text(
-                    "Transpose",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(end = 8.dp)
-                )
+            TopBarTranspose(uiState, onEvent)
+            TopBarMidiStatus(uiState, onEvent)
+            TopBarEditButton(isEditMode, onToggleEdit)
+        }
+    }
+}
 
-                // Shared Infinite Transition for Blinking
-                val infiniteTransition = rememberInfiniteTransition(label = "transpose_blink")
-                val blinkColor by infiniteTransition.animateColor(
-                    initialValue = MaterialTheme.colorScheme.surfaceVariant,
-                    targetValue = ColorOrange,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(600),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "blink_color"
-                )
+@Composable
+fun AppTopBarPortrait(
+    uiState: MainUiState.Success,
+    onEvent: (MainEvent) -> Unit,
+    isEditMode: Boolean,
+    onToggleEdit: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight()
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Row 1: Title and Edit Button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TopBarTitle()
+            TopBarEditButton(isEditMode, onToggleEdit)
+        }
 
-                val minusBg =
-                    if (settings.currentTranspose < 0) blinkColor else MaterialTheme.colorScheme.surfaceVariant
+        // Row 2: Search Bar
+        Box(modifier = Modifier.fillMaxWidth()) {
+            TopBarSearch(uiState, onEvent)
+        }
 
-                Box(
-                    modifier = Modifier
-                        .size(32.dp, 30.dp)
-                        .background(
-                            minusBg,
-                            RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)
-                        )
-                        .clickable { onEvent(MainEvent.UpdateTranspose(-1)) }
-                        .border(
-                            1.dp,
-                            outlineColor,
-                            RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "-",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+        // Row 3: Transpose and Midi Controls
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TopBarTranspose(uiState, onEvent)
+            TopBarMidiStatus(uiState, onEvent)
+        }
+    }
+}
 
-                Box(
-                    modifier = Modifier
-                        .size(32.dp, 30.dp)
-                        .background(MaterialTheme.colorScheme.background)
-                        .clickable { onEvent(MainEvent.ResetTranspose) }
-                        .border(1.dp, outlineColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "${settings.currentTranspose}",
-                        color = if (settings.currentTranspose != 0) ColorYellow else MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                }
+// --- Sub-Components for Reusability ---
 
-                val plusBg =
-                    if (settings.currentTranspose > 0) blinkColor else MaterialTheme.colorScheme.surfaceVariant
+@Composable
+fun TopBarTitle() {
+    Column(modifier = Modifier.wrapContentWidth()) {
+        Text(
+            "Sonic Grid",
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
+            letterSpacing = 0.5.sp
+        )
+        Text(
+            "Live Set Patch Changer",
+            modifier = Modifier.align(Alignment.End),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            fontSize = 12.5.sp
+        )
+    }
+}
 
-                Box(
-                    modifier = Modifier
-                        .size(32.dp, 30.dp)
-                        .background(plusBg, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp))
-                        .clickable { onEvent(MainEvent.UpdateTranspose(1)) }
-                        .border(
-                            1.dp,
-                            outlineColor,
-                            RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "+",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
+@Composable
+fun TopBarSearch(uiState: MainUiState.Success, onEvent: (MainEvent) -> Unit) {
+    val outlineColor = MaterialTheme.colorScheme.outline
+    var isFocused by remember { mutableStateOf(false) }
 
-            // MIDI Status with Double Blinking logic
-            val midiTransition = rememberInfiniteTransition(label = "midi_blink")
-            val midiBlinkColor by midiTransition.animateColor(
-                initialValue = Color.Transparent,
-                targetValue = if (midiState is MidiConnectionState.Connected) ColorGreen else ColorRed, // Blinks to respective color
-                animationSpec = infiniteRepeatable(
-                    animation = tween(800),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "midi_state_blink"
+    BasicTextField(
+        value = uiState.searchQuery,
+        onValueChange = { onEvent(MainEvent.UpdateSearchQuery(it)) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp)
+            .background(MaterialTheme.colorScheme.background, RoundedCornerShape(4.dp))
+            .border(
+                1.dp,
+                if (isFocused) Color(0xFF448AFF) else outlineColor,
+                RoundedCornerShape(4.dp)
             )
-
-            // We base the color purely on animation for blinking effect
-            val finalMidiColor = if (midiState is MidiConnectionState.Connected) {
-                // Connected: Blink Green
-                midiBlinkColor
-            } else {
-                // Disconnected: Blink Red
-                midiBlinkColor
-            }
-
-            Text(
-                text = if (midiState is MidiConnectionState.Connected) midiState.deviceName else "Not Connected",
-                color = if (midiState is MidiConnectionState.Connected) Color.Green else Color.Red,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            // MIDI Channel
-            var midiMenuExpanded by remember { mutableStateOf(false) }
+            .onFocusChanged { isFocused = it.isFocused }
+            .padding(horizontal = 6.dp, vertical = 8.dp),
+        textStyle = TextStyle(
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onBackground
+        ),
+        singleLine = true,
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        decorationBox = { inner ->
             Box {
-                Button(
-                    onClick = { midiMenuExpanded = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = finalMidiColor), // Apply blinking color to button bg too
-                    shape = RoundedCornerShape(4.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp),
-                    modifier = Modifier.height(30.dp)
-                ) {
-                    Text("MIDI", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        settings.currentMidiChannel.toString(),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(16.dp))
-                }
-                DropdownMenu(
-                    expanded = midiMenuExpanded,
-                    onDismissRequest = { midiMenuExpanded = false }) {
-                    (1..16).forEach { ch ->
-                        DropdownMenuItem(
-                            text = { Text("Channel $ch") },
-                            onClick = {
-                                onEvent(MainEvent.UpdateMidiChannel(ch)); midiMenuExpanded = false
-                            })
+                if (uiState.searchQuery.isEmpty()) Text(
+                    "Search ",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+                inner()
+            }
+        }
+    )
+
+    // Results Popup
+    if (uiState.searchQuery.isNotBlank() && uiState.searchResults.isNotEmpty()) {
+        Popup(
+            alignment = Alignment.TopStart,
+            offset = IntOffset(0, 100)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 300.dp)
+                    .border(1.dp, outlineColor, RoundedCornerShape(0.dp, 0.dp, 6.dp, 6.dp)),
+                elevation = CardDefaults.cardElevation(8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(0.dp, 0.dp, 6.dp, 6.dp)
+            ) {
+                LazyColumn {
+                    items(uiState.searchResults) { result ->
+                        SearchResultItem(
+                            result = result,
+                            onClick = { onEvent(MainEvent.GoToSearchResult(result)) }
+                        )
                     }
                 }
-            }
-
-            // Edit Button
-            Button(
-                onClick = onToggleEdit,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isEditMode) ColorOrange else MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = if (isEditMode) Color.Black else MaterialTheme.colorScheme.onSurface
-                ),
-                border = if (!isEditMode) BorderStroke(1.dp, outlineColor) else null,
-                shape = RoundedCornerShape(4.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp),
-                modifier = Modifier.height(30.dp)
-            ) {
-                Icon(Icons.Default.Edit, null, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(if (isEditMode) "Done" else "Edit", fontSize = 12.sp)
             }
         }
     }
 }
+
+@Composable
+fun TopBarTranspose(uiState: MainUiState.Success, onEvent: (MainEvent) -> Unit) {
+    val settings = uiState.settings
+    val outlineColor = MaterialTheme.colorScheme.outline
+
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(36.dp)) {
+        Text(
+            "Transpose",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(end = 8.dp)
+        )
+
+        // Shared Infinite Transition for Blinking
+        val infiniteTransition = rememberInfiniteTransition(label = "transpose_blink")
+        val blinkColor by infiniteTransition.animateColor(
+            initialValue = MaterialTheme.colorScheme.surfaceVariant,
+            targetValue = ColorOrange,
+            animationSpec = infiniteRepeatable(
+                animation = tween(600),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "blink_color"
+        )
+
+        val minusBg =
+            if (settings.currentTranspose < 0) blinkColor else MaterialTheme.colorScheme.surfaceVariant
+
+        Box(
+            modifier = Modifier
+                .size(32.dp, 30.dp)
+                .background(
+                    minusBg,
+                    RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)
+                )
+                .clickable { onEvent(MainEvent.UpdateTranspose(-1)) }
+                .border(
+                    1.dp,
+                    outlineColor,
+                    RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "-",
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .size(32.dp, 30.dp)
+                .background(MaterialTheme.colorScheme.background)
+                .clickable { onEvent(MainEvent.ResetTranspose) }
+                .border(1.dp, outlineColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "${settings.currentTranspose}",
+                color = if (settings.currentTranspose != 0) ColorYellow else MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
+
+        val plusBg =
+            if (settings.currentTranspose > 0) blinkColor else MaterialTheme.colorScheme.surfaceVariant
+
+        Box(
+            modifier = Modifier
+                .size(32.dp, 30.dp)
+                .background(plusBg, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp))
+                .clickable { onEvent(MainEvent.UpdateTranspose(1)) }
+                .border(
+                    1.dp,
+                    outlineColor,
+                    RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "+",
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+fun TopBarMidiStatus(uiState: MainUiState.Success, onEvent: (MainEvent) -> Unit) {
+    val midiState = uiState.midiState
+    val settings = uiState.settings
+
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // MIDI Status
+        val midiTransition = rememberInfiniteTransition(label = "midi_blink")
+        val midiBlinkColor by midiTransition.animateColor(
+            initialValue = Color.Transparent,
+            targetValue = if (midiState is MidiConnectionState.Connected) ColorGreen else ColorRed,
+            animationSpec = infiniteRepeatable(
+                animation = tween(800),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "midi_state_blink"
+        )
+
+        val finalMidiColor = if (midiState is MidiConnectionState.Connected) midiBlinkColor else midiBlinkColor
+
+        Text(
+            text = if (midiState is MidiConnectionState.Connected) midiState.deviceName else "Not Connected",
+            color = if (midiState is MidiConnectionState.Connected) Color.Green else Color.Red,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        // MIDI Channel Button
+        var midiMenuExpanded by remember { mutableStateOf(false) }
+        Box {
+            Button(
+                onClick = { midiMenuExpanded = true },
+                colors = ButtonDefaults.buttonColors(containerColor = finalMidiColor),
+                shape = RoundedCornerShape(4.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp),
+                modifier = Modifier.height(30.dp)
+            ) {
+                Text("MIDI", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    settings.currentMidiChannel.toString(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(16.dp))
+            }
+            DropdownMenu(
+                expanded = midiMenuExpanded,
+                onDismissRequest = { midiMenuExpanded = false }) {
+                (1..16).forEach { ch ->
+                    DropdownMenuItem(
+                        text = { Text("Channel $ch") },
+                        onClick = {
+                            onEvent(MainEvent.UpdateMidiChannel(ch)); midiMenuExpanded = false
+                        })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TopBarEditButton(isEditMode: Boolean, onToggleEdit: () -> Unit) {
+    val outlineColor = MaterialTheme.colorScheme.outline
+    Button(
+        onClick = onToggleEdit,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isEditMode) ColorOrange else MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = if (isEditMode) Color.Black else MaterialTheme.colorScheme.onSurface
+        ),
+        border = if (!isEditMode) BorderStroke(1.dp, outlineColor) else null,
+        shape = RoundedCornerShape(4.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp),
+        modifier = Modifier.height(30.dp)
+    ) {
+        Icon(Icons.Default.Edit, null, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(if (isEditMode) "Done" else "Edit", fontSize = 12.sp)
+    }
+}
+
 
 @Composable
 fun SearchResultItem(result: SearchResult, onClick: () -> Unit) {
@@ -421,9 +509,6 @@ fun SelectorItem(
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
     val outlineColor = MaterialTheme.colorScheme.outline
-
-    // Define the SkyBlue Ripple using the new Material3 API
-    // REPLACED rememberRipple with ripple()
     val skyBlueRipple = ripple(color = Color(0xFF87CEEB))
 
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
@@ -433,7 +518,7 @@ fun SelectorItem(
                 .size(38.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = skyBlueRipple, // Applying the SkyBlue click effect
+                    indication = skyBlueRipple,
                     onClick = onPrev
                 ),
             border = BorderStroke(1.dp, outlineColor)
@@ -484,7 +569,7 @@ fun SelectorItem(
                 .size(38.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = skyBlueRipple, // Applying the SkyBlue click effect
+                    indication = skyBlueRipple,
                     onClick = onNext
                 ),
             border = BorderStroke(1.dp, outlineColor)
