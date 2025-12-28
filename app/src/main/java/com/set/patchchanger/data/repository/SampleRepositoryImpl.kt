@@ -2,8 +2,8 @@ package com.set.patchchanger.data.repository
 
 import android.content.Context
 import android.media.MediaMetadataRetriever
-import android.media.MediaPlayer
 import android.net.Uri
+import com.set.patchchanger.data.local.AudioPlayer
 import com.set.patchchanger.data.local.dao.AudioLibraryDao
 import com.set.patchchanger.data.local.dao.SampleDao
 import com.set.patchchanger.data.local.entities.AudioLibraryEntity
@@ -31,12 +31,10 @@ import javax.inject.Singleton
 class SampleRepositoryImpl @Inject constructor(
     private val sampleDao: SampleDao,
     private val audioLibraryDao: AudioLibraryDao,
+    private val audioPlayer: AudioPlayer, // Added the new AudioPlayer
     @param:ApplicationContext private val context: Context,
     private val scope: CoroutineScope
 ) : SampleRepository, AudioLibraryRepository {
-
-    // Replaced SoundPool with MediaPlayer for full playback support
-    private val mediaPlayers = mutableMapOf<Int, MediaPlayer>()
 
     private val _playingSampleIds = MutableStateFlow<Set<Int>>(emptySet())
     override fun observePlayingStates(): Flow<Set<Int>> = _playingSampleIds.asStateFlow()
@@ -124,9 +122,9 @@ class SampleRepositoryImpl @Inject constructor(
     }
 
     override suspend fun resetSamples() {
-        // Stop all active players
         withContext(Dispatchers.Main) {
-            mediaPlayers.keys.toList().forEach { stopSample(it) }
+            // Stop all active audio using the player
+            (0..3).forEach { stopSample(it) }
         }
         sampleDao.deleteAll()
         sampleDao.insertSamples(generateDefaultSamples())
@@ -142,56 +140,25 @@ class SampleRepositoryImpl @Inject constructor(
         val file = File(context.filesDir, sample.audioFileName)
         if (!file.exists()) return
 
-        // 2. Manage MediaPlayer (Main Thread)
+        // 2. Manage AudioPlayer (Main Thread)
         withContext(Dispatchers.Main) {
-            // Toggle behavior: If playing, stop it.
             if (_playingSampleIds.value.contains(sampleId)) {
                 stopSample(sampleId)
-                return@withContext
-            }
-
-            // Stop any existing player for this slot to be safe
-            mediaPlayers[sampleId]?.let {
-                if (it.isPlaying) it.stop()
-                it.release()
-            }
-            mediaPlayers.remove(sampleId)
-
-            try {
-                val mp = MediaPlayer()
-                mp.setDataSource(file.absolutePath)
-                mp.prepare() // Synchronous prepare is safe for local files on Main in this context
-
-                val vol = sample.volume / 100f
-                mp.setVolume(vol, vol)
-                mp.isLooping = sample.loop
-
-                // Critical: Only stop UI when playback actually completes
-                mp.setOnCompletionListener { player ->
-                    player.release()
-                    mediaPlayers.remove(sampleId)
-                    setPlayingState(sampleId, false)
-                }
-
-                mp.start()
-                mediaPlayers[sampleId] = mp
+            } else {
+                // Pass path to the ExoPlayer-based AudioPlayer
+                audioPlayer.playSound(
+                    sampleId = sampleId,
+                    filePath = file.absolutePath,
+                    volume = sample.volume,
+                    loop = sample.loop
+                )
                 setPlayingState(sampleId, true)
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
         }
     }
 
     override fun stopSample(sampleId: Int) {
-        mediaPlayers[sampleId]?.let {
-            try {
-                if (it.isPlaying) it.stop()
-                it.release()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-        mediaPlayers.remove(sampleId)
+        audioPlayer.stopSound(sampleId)
         setPlayingState(sampleId, false)
     }
 
@@ -200,15 +167,7 @@ class SampleRepositoryImpl @Inject constructor(
     }
 
     override fun cleanup() {
-        mediaPlayers.values.forEach {
-            try {
-                if (it.isPlaying) it.stop()
-                it.release()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-        mediaPlayers.clear()
+        audioPlayer.cleanup()
     }
 
     private fun getDefaultSampleColors() = listOf("#008B8B", "#F50057", "#00C853", "#D500F9")
@@ -283,3 +242,17 @@ class SampleRepositoryImpl @Inject constructor(
     private fun AudioLibraryItem.toEntity() =
         AudioLibraryEntity(name, filePath, sizeBytes, durationMs, addedTimestamp)
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

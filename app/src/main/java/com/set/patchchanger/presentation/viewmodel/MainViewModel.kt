@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.set.patchchanger.data.local.AudioPlayer
 import com.set.patchchanger.data.local.FileManager
 import com.set.patchchanger.domain.model.AppSettings
 import com.set.patchchanger.domain.model.AppTheme
@@ -69,6 +70,7 @@ class MainViewModel @Inject constructor(
     private val exportDataUseCase: ExportDataUseCase,
     private val importDataUseCase: ImportDataUseCase,
     private val getPerformancesUseCase: GetPerformancesUseCase,
+    private val audioPlayer: AudioPlayer,
     private val fileManager: FileManager,
     @param:ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -403,7 +405,6 @@ class MainViewModel @Inject constructor(
                         performanceSearchQuery = event.query
                     )
                 }
-
                 else -> {}
             }
         }
@@ -420,8 +421,12 @@ class MainViewModel @Inject constructor(
         return name
     }
 
-    fun cleanup() {
+    override fun onCleared() {
+        super.onCleared()
+        // This is the built-in lifecycle method that runs automatically
+        // when the ViewModel is destroyed.
         midiRepository.cleanup()
         sampleRepository.cleanup()
+        audioPlayer.cleanup()
     }
 }

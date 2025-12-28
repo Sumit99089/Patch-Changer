@@ -1,64 +1,63 @@
 package com.set.patchchanger.data.local
 
-import android.media.AudioAttributes
-import android.media.SoundPool
+import android.content.Context
+import android.net.Uri
+import androidx.annotation.OptIn
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AudioPlayer @Inject constructor() {
-    private val soundPool: SoundPool = SoundPool.Builder()
-        .setMaxStreams(4)
-        .setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-        )
-        .build()
+class AudioPlayer @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    // Map of SampleID to its dedicated ExoPlayer instance
+    private val playerPool = mutableMapOf<Int, ExoPlayer>()
 
-    private val loadedSounds = mutableMapOf<String, Int>() // FilePath -> SoundID
-    private val activeStreams = mutableMapOf<Int, Int>()   // SampleID -> StreamID
-
-    fun loadSound(filePath: String) {
-        if (!loadedSounds.containsKey(filePath)) {
-            // In a real app, you might need to handle Uri permissions or copy to internal storage
-            // This assumes filePath is a valid accessible path or Uri string
-            val soundId = soundPool.load(filePath, 1)
-            loadedSounds[filePath] = soundId
+    private fun getOrCreatePlayer(sampleId: Int): ExoPlayer {
+        return playerPool.getOrPut(sampleId) {
+            ExoPlayer.Builder(context).build().apply {
+                // This ensures the audio starts exactly when the previous one ends
+                repeatMode = Player.REPEAT_MODE_OFF
+            }
         }
     }
 
     fun playSound(sampleId: Int, filePath: String?, volume: Int, loop: Boolean) {
         if (filePath == null) return
 
-        // Stop existing if playing
-        activeStreams[sampleId]?.let { soundPool.stop(it) }
+        val player = getOrCreatePlayer(sampleId)
 
-        val soundId = loadedSounds[filePath] ?: run {
-            // Attempt load if not cached (might delay first play)
-            val newId = soundPool.load(filePath, 1)
-            loadedSounds[filePath] = newId
-            newId
+        // Prepare the media item from the local file path
+        val uri = Uri.parse(filePath)
+        val mediaItem = MediaItem.fromUri(uri)
+
+        player.apply {
+            stop() // Stop current playback if any
+            clearMediaItems()
+            setMediaItem(mediaItem)
+
+            // Set looping and volume
+            repeatMode = if (loop) Player.REPEAT_MODE_ALL else Player.REPEAT_MODE_OFF
+            setVolume(volume / 100f)
+
+            prepare()
+            playWhenReady = true
         }
-
-        // Note: soundPool.load is async. In production, handle onLoadComplete.
-
-        val vol = volume / 100f
-        val loopCount = if (loop) -1 else 0
-
-        val streamId = soundPool.play(soundId, vol, vol, 1, loopCount, 1.0f)
-        activeStreams[sampleId] = streamId
     }
 
     fun stopSound(sampleId: Int) {
-        activeStreams[sampleId]?.let {
-            soundPool.stop(it)
-            activeStreams.remove(sampleId)
-        }
+        playerPool[sampleId]?.stop()
     }
 
     fun cleanup() {
-        soundPool.release()
+        playerPool.values.forEach {
+            it.release()
+        }
+        playerPool.clear()
     }
 }

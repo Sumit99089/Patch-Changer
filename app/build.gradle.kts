@@ -72,6 +72,8 @@ dependencies {
     // Google Sign In (Cred Manager recommended for newer apps, but keeping it simple)
     implementation(libs.play.services.auth)
 
+    implementation("androidx.media3:media3-exoplayer:1.2.0")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
