@@ -180,17 +180,10 @@ fun AppTopBarPortrait(
 fun TopBarTitle() {
     Column(modifier = Modifier.wrapContentWidth()) {
         Text(
-            "Sonic Grid",
+            text = "Live Set Patch Changer",
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
-            fontSize = 15.sp,
-            letterSpacing = 0.5.sp
-        )
-        Text(
-            "Live Set Patch Changer",
-            modifier = Modifier.align(Alignment.End),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-            fontSize = 12.5.sp
+            fontSize = 18.sp
         )
     }
 }
@@ -355,7 +348,10 @@ fun TopBarMidiStatus(uiState: MainUiState.Success, onEvent: (MainEvent) -> Unit)
     val midiState = uiState.midiState
     val settings = uiState.settings
 
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         // MIDI Status
         val midiTransition = rememberInfiniteTransition(label = "midi_blink")
         val midiBlinkColor by midiTransition.animateColor(
@@ -368,7 +364,8 @@ fun TopBarMidiStatus(uiState: MainUiState.Success, onEvent: (MainEvent) -> Unit)
             label = "midi_state_blink"
         )
 
-        val finalMidiColor = if (midiState is MidiConnectionState.Connected) midiBlinkColor else midiBlinkColor
+        val finalMidiColor =
+            if (midiState is MidiConnectionState.Connected) midiBlinkColor else midiBlinkColor
 
         Text(
             text = if (midiState is MidiConnectionState.Connected) midiState.deviceName else "Not Connected",

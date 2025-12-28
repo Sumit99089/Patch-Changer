@@ -58,6 +58,7 @@ import com.set.patchchanger.ui.theme.SampleGreen
 import com.set.patchchanger.ui.theme.SamplePink
 import com.set.patchchanger.ui.theme.SamplePurple
 import com.set.patchchanger.ui.theme.SampleTeal
+import android.graphics.Color as GraphicsColor
 
 @Composable
 fun BottomBar(
@@ -71,7 +72,7 @@ fun BottomBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(backgroundColor.copy(alpha = 0.9f))
-            .padding(8.dp)
+            .padding(4.dp)
     ) {
         if (maxWidth < 600.dp) {
             BottomBarPortrait(uiState, onEvent, isEditMode)
@@ -90,7 +91,7 @@ fun BottomBarLandscape(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(60.dp),
+            .height(45.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -151,7 +152,10 @@ fun BottomBarPortrait(
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 DataButton("Save", Icons.Default.Save) { onEvent(MainEvent.RequestExportData) }
-                DataButton("Load", Icons.Default.FolderOpen) { onEvent(MainEvent.RequestImportData) }
+                DataButton(
+                    "Load",
+                    Icons.Default.FolderOpen
+                ) { onEvent(MainEvent.RequestImportData) }
                 DataButton(
                     "Reset",
                     Icons.Default.Close,
@@ -181,7 +185,7 @@ fun RowScope.SamplePadsGroup(
         // Robust Color Parsing
         val baseColor = if (!dbColor.isNullOrEmpty()) {
             try {
-                Color(android.graphics.Color.parseColor(dbColor.trim()))
+                Color(GraphicsColor.parseColor(dbColor.trim()))
             } catch (e: Exception) {
                 defaultColors[i]
             }
