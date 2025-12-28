@@ -90,11 +90,9 @@ fun PatchGrid(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .onGloballyPositioned { gridOffset = it.localToRoot(Offset.Zero) }
-    ) {
+            .onGloballyPositioned { gridOffset = it.localToRoot(Offset.Zero) }) {
         Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             repeat(4) { rowIndex ->
                 Row(
@@ -125,8 +123,7 @@ fun PatchGrid(
                                     dragState.dropTargetSlot?.let { target ->
                                         dragState.draggedSlot?.let { source ->
                                             if (source.id != target.id) onSlotSwap(
-                                                source.id,
-                                                target.id
+                                                source.id, target.id
                                             )
                                         }
                                     }
@@ -151,8 +148,7 @@ fun PatchGrid(
                                         }
                                     }
                                 },
-                                onClick = { if (isEditMode) onSlotEdit(slot) else onSlotClick(slot) }
-                            )
+                                onClick = { if (isEditMode) onSlotEdit(slot) else onSlotClick(slot) })
                         } else {
                             Spacer(Modifier.weight(1f))
                         }
@@ -167,20 +163,18 @@ fun PatchGrid(
             val width = with(density) { bounds.width.toDp() }
             val height = with(density) { bounds.height.toDp() }
 
-            Box(
-                modifier = Modifier
-                    .zIndex(10f)
-                    .offset {
-                        val topLeft = bounds.topLeft - gridOffset
-                        IntOffset(
-                            (topLeft.x + dragState.dragOffset.x).roundToInt(),
-                            (topLeft.y + dragState.dragOffset.y).roundToInt()
-                        )
-                    }
-                    .width(width)
-                    .height(height)
-                    .graphicsLayer { alpha = 0.8f; scaleX = 1.05f; scaleY = 1.05f }
-            ) {
+            Box(modifier = Modifier
+                .zIndex(10f)
+                .offset {
+                    val topLeft = bounds.topLeft - gridOffset
+                    IntOffset(
+                        (topLeft.x + dragState.dragOffset.x).roundToInt(),
+                        (topLeft.y + dragState.dragOffset.y).roundToInt()
+                    )
+                }
+                .width(width)
+                .height(height)
+                .graphicsLayer { alpha = 0.8f; scaleX = 1.05f; scaleY = 1.05f }) {
                 PatchSlotCard(slot, emptySet(), isEditMode, false, false, Modifier.fillMaxSize())
             }
         }
@@ -213,8 +207,7 @@ fun RowScope.PatchSlotItem(
             .onGloballyPositioned { layout ->
                 onGloballyPositioned(
                     Rect(
-                        layout.localToRoot(Offset.Zero),
-                        layout.size.toSize()
+                        layout.localToRoot(Offset.Zero), layout.size.toSize()
                     )
                 )
             }
@@ -229,11 +222,9 @@ fun RowScope.PatchSlotItem(
                             dragAmount
                         )
                     }
-                    }
-                )
+                    })
             }
-            .clickable { onClick() }
-    )
+            .clickable { onClick() })
 }
 
 @Composable
@@ -258,8 +249,7 @@ fun PatchSlotCard(
         initialValue = bgColor.copy(alpha = 0.3f),
         targetValue = bgColor,
         animationSpec = infiniteRepeatable(
-            animation = tween(400, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = tween(400, easing = LinearEasing), repeatMode = RepeatMode.Reverse
         ),
         label = "border_blink"
     )
@@ -275,6 +265,16 @@ fun PatchSlotCard(
         else -> Color.Transparent to 0.dp
     }
 
+    // Animation for the "Black Gap"
+    val gapBlinkColor by infiniteTransition.animateColor(
+        initialValue = Color.Black,
+        targetValue = if (isPlaying) Color.Gray else Color.Black,
+        animationSpec = infiniteRepeatable(
+            animation = tween(400, easing = LinearEasing), repeatMode = RepeatMode.Reverse
+        ),
+        label = "gap_blink"
+    )
+
     // 4. Calculate total padding needed for the "Black Gap" effect
     // If there is a visible border, we add a 3dp black gap.
     val gap = if (borderWidth > 0.dp) 3.dp else 0.dp
@@ -282,27 +282,22 @@ fun PatchSlotCard(
 
     // 5. Scale Animation
     val scale by animateFloatAsState(
-        targetValue = if (slot.selected && !isEditMode) 1.02f else 1f,
-        label = "scale"
+        targetValue = if (slot.selected && !isEditMode) 1.02f else 1f, label = "scale"
     )
 
     // REPLACED Card with Box for precise alignment control
-    Box(
-        modifier = modifier
-            .graphicsLayer {
-                alpha = if (isBeingDragged) 0f else 1f
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(RoundedCornerShape(6.dp))
-            .background(Color.Black) // The "Gap" color
-            // Draw border on the Outer Box
-            .border(
-                width = borderWidth,
-                color = borderColor,
-                shape = RoundedCornerShape(6.dp)
-            )
-    ) {
+    Box(modifier = modifier
+        .graphicsLayer {
+            alpha = if (isBeingDragged) 0f else 1f
+            scaleX = scale
+            scaleY = scale
+        }
+        .clip(RoundedCornerShape(6.dp))
+        .background(gapBlinkColor) // The "Gap" color (animated)
+        // Draw border on the Outer Box
+        .border(
+            width = borderWidth, color = borderColor, shape = RoundedCornerShape(6.dp)
+        )) {
         // Inner Box: The actual button content
         Box(
             modifier = Modifier
@@ -325,9 +320,7 @@ fun PatchSlotCard(
                     platformStyle = PlatformTextStyle(
                         includeFontPadding = false // Removes native Android font padding for strict centering
                     )
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                ), maxLines = 1, overflow = TextOverflow.Ellipsis
             )
         }
     }
