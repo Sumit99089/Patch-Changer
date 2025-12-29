@@ -159,9 +159,11 @@ class MainViewModel @Inject constructor(
                     if (slot != null) {
                         if (slot.assignedSample >= 0) {
                             sampleRepository.triggerSampleAudio(slot.assignedSample)
-                            _internalState.update { it.copy(blinkingErrorSlots = it.blinkingErrorSlots - slot.id) }
+                            // CHANGED: Clear ALL previous error blinks when a valid slot is selected
+                            _internalState.update { it.copy(blinkingErrorSlots = emptySet()) }
                         } else {
-                            _internalState.update { it.copy(blinkingErrorSlots = it.blinkingErrorSlots + slot.id) }
+                            // CHANGED: Clear previous errors and set ONLY this one as the error blink
+                            _internalState.update { it.copy(blinkingErrorSlots = setOf(slot.id)) }
                         }
                     }
                 }

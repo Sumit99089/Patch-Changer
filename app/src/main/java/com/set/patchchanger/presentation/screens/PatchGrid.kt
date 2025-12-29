@@ -178,7 +178,15 @@ fun PatchGrid(
                     .width(width)
                     .height(height)
                     .graphicsLayer { alpha = 0.8f; scaleX = 1.05f; scaleY = 1.05f }) {
-                PatchSlotCard(slot, emptySet(), emptySet(), isEditMode, false, false, Modifier.fillMaxSize())
+                PatchSlotCard(
+                    slot,
+                    emptySet(),
+                    emptySet(),
+                    isEditMode,
+                    false,
+                    false,
+                    Modifier.fillMaxSize()
+                )
             }
         }
     }
@@ -261,13 +269,11 @@ fun PatchSlotCard(
     )
 
     // 3. Logic for Border Width and Color
-    val isPlaying = playingSampleIds.contains(slot.assignedSample)
-    val isErrorBlinking = blinkingErrorSlots.contains(slot.id)
-
+    // CHANGED: Now only blinks if selected (indefinitely) or if drop target.
+    // Explicitly ignores isPlaying or blinkingErrorSlots for the visual blink to ensure exclusivity.
     val (borderColor, borderWidth) = when {
         isDropTarget -> ColorYellow to 3.dp
-        (slot.selected && isPlaying && !isEditMode) || (isErrorBlinking && !isEditMode) -> blinkColor to 4.dp
-        slot.selected && !isEditMode -> bgColor to 4.dp
+        slot.selected && !isEditMode -> blinkColor to 4.dp
         isEditMode -> Color.White.copy(alpha = 0.3f) to 1.dp
         else -> Color.Transparent to 0.dp
     }
@@ -275,7 +281,7 @@ fun PatchSlotCard(
     // Animation for the "Black Gap"
     val gapBlinkColor by infiniteTransition.animateColor(
         initialValue = Color.Black,
-        targetValue = if (isPlaying || isErrorBlinking) Color.Gray else Color.Black,
+        targetValue = if (slot.selected && !isEditMode) Color.Gray else Color.Black,
         animationSpec = infiniteRepeatable(
             animation = tween(400, easing = LinearEasing), repeatMode = RepeatMode.Reverse
         ),
