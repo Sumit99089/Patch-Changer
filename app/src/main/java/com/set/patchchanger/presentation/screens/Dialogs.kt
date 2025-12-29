@@ -100,7 +100,11 @@ fun DialogHeader(title: String, onClose: (() -> Unit)? = null) {
                 onClick = onClose,
                 modifier = Modifier.size(24.dp) // Smaller close button touch target
             ) {
-                Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(20.dp))
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Close",
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
@@ -112,7 +116,8 @@ fun DialogFooter(
     onCancel: () -> Unit,
     onSave: () -> Unit,
     saveLabel: String = "Save",
-    showCancel: Boolean = true
+    showCancel: Boolean = true,
+    isSaveEnabled: Boolean = true // Added to allow disabling the save button
 ) {
     HorizontalDivider()
     Row(
@@ -126,7 +131,7 @@ fun DialogFooter(
             TextButton(onClick = onCancel) { Text("Cancel") }
             Spacer(Modifier.width(8.dp))
         }
-        Button(onClick = onSave) { Text(saveLabel) }
+        Button(onClick = onSave, enabled = isSaveEnabled) { Text(saveLabel) }
     }
 }
 
@@ -180,7 +185,9 @@ fun BankPageNameDialog(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                DialogFooter(onCancel = onDismiss, onSave = { onSaveBank(bankName); onSavePage(pageName); onDismiss() })
+                DialogFooter(
+                    onCancel = onDismiss,
+                    onSave = { onSaveBank(bankName); onSavePage(pageName); onDismiss() })
             }
         }
     }
@@ -226,16 +233,32 @@ fun EditSampleDialog(
                     )
                     Spacer(Modifier.height(16.dp))
 
-                    Text("Audio Source", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        "Audio Source",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onLoadFile, Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) { Text("Load File") }
-                        Button(onClick = onSelectFromLibrary, Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) { Text("Library") }
+                        Button(
+                            onClick = onLoadFile,
+                            Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) { Text("Load File") }
+                        Button(
+                            onClick = onSelectFromLibrary,
+                            Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) { Text("Library") }
                     }
 
                     Spacer(Modifier.height(20.dp))
 
-                    Text("Pad Color", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        "Pad Color",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(Modifier.height(8.dp))
 
                     // Inline Color Picker
@@ -248,7 +271,9 @@ fun EditSampleDialog(
                         items(getModxColors()) { modxColor ->
                             val colorInt = try {
                                 android.graphics.Color.parseColor(modxColor.hex)
-                            } catch (e: Exception) { android.graphics.Color.GRAY }
+                            } catch (e: Exception) {
+                                android.graphics.Color.GRAY
+                            }
                             val isSelected = selectedColor.equals(modxColor.hex, ignoreCase = true)
 
                             Box(
@@ -280,7 +305,9 @@ fun EditSampleDialog(
                         )
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { loop = !loop }) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { loop = !loop }) {
                         Checkbox(checked = loop, onCheckedChange = { loop = it })
                         Text("Loop Playback")
                     }
@@ -288,7 +315,10 @@ fun EditSampleDialog(
                     Spacer(Modifier.height(16.dp))
                     Button(
                         onClick = onClearAudio,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp)
                     ) { Text("Clear Audio Data") }
@@ -298,7 +328,14 @@ fun EditSampleDialog(
                 DialogFooter(
                     onCancel = onDismiss,
                     onSave = {
-                        onSave(sample.copy(name = name, volume = volume.toInt(), loop = loop, color = selectedColor))
+                        onSave(
+                            sample.copy(
+                                name = name,
+                                volume = volume.toInt(),
+                                loop = loop,
+                                color = selectedColor
+                            )
+                        )
                         onDismiss()
                     },
                     saveLabel = "OK"
@@ -329,7 +366,9 @@ fun SwapDialog(
                     items(currentPageSlots.filter { it.id != sourceSlot.id }) { slot ->
                         val bgColor = try {
                             Color(android.graphics.Color.parseColor(slot.color))
-                        } catch (e: Exception) { MaterialTheme.colorScheme.surfaceVariant }
+                        } catch (e: Exception) {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        }
 
                         Card(
                             modifier = Modifier
@@ -338,7 +377,12 @@ fun SwapDialog(
                             colors = CardDefaults.cardColors(containerColor = bgColor),
                             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f))
                         ) {
-                            Box(Modifier.fillMaxSize().padding(4.dp), contentAlignment = Alignment.Center) {
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Text(
                                     slot.getDisplayName(),
                                     style = MaterialTheme.typography.bodySmall,
@@ -351,7 +395,12 @@ fun SwapDialog(
                         }
                     }
                 }
-                DialogFooter(onCancel = onDismiss, onSave = {}, showCancel = true, saveLabel = "") // Only cancel needed
+                DialogFooter(
+                    onCancel = onDismiss,
+                    onSave = {},
+                    showCancel = true,
+                    saveLabel = ""
+                ) // Only cancel needed
             }
         }
     }
@@ -412,7 +461,11 @@ fun EditSlotDialog(
                     // --- SECTION: BASIC SETTINGS ---
                     item {
                         Spacer(Modifier.height(8.dp))
-                        Text("General Settings", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            "General Settings",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                         Spacer(Modifier.height(12.dp))
 
                         OutlinedTextField(
@@ -452,8 +505,11 @@ fun EditSlotDialog(
                             items(getModxColors()) { modxColor ->
                                 val colorInt = try {
                                     android.graphics.Color.parseColor(modxColor.hex)
-                                } catch (e: Exception) { android.graphics.Color.GRAY }
-                                val isSelected = slotColorHex.equals(modxColor.hex, ignoreCase = true)
+                                } catch (e: Exception) {
+                                    android.graphics.Color.GRAY
+                                }
+                                val isSelected =
+                                    slotColorHex.equals(modxColor.hex, ignoreCase = true)
 
                                 Box(
                                     Modifier
@@ -471,14 +527,23 @@ fun EditSlotDialog(
                         }
 
                         Spacer(Modifier.height(16.dp))
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(
+                                alpha = 0.5f
+                            )
+                        )
                         Spacer(Modifier.height(16.dp))
 
                         // --- SECTION: MIDI & AUDIO ---
-                        Text("MIDI & Audio", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            "MIDI & Audio",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                         Spacer(Modifier.height(12.dp))
 
-                        val displayPerf = uiState.slotToEditColor?.performanceName ?: slot.performanceName
+                        val displayPerf =
+                            uiState.slotToEditColor?.performanceName ?: slot.performanceName
                         OutlinedTextField(
                             value = displayPerf,
                             onValueChange = {},
@@ -494,14 +559,20 @@ fun EditSlotDialog(
                         var sampleExpanded by remember { mutableStateOf(false) }
                         Box(modifier = Modifier.fillMaxWidth()) {
                             OutlinedTextField(
-                                value = uiState.samples.find { it.id == assignedSample }?.name ?: "None",
+                                value = uiState.samples.find { it.id == assignedSample }?.name
+                                    ?: "None",
                                 onValueChange = {},
                                 label = { Text("Trigger Sample Pad") },
                                 readOnly = true,
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = sampleExpanded) },
-                                modifier = Modifier.fillMaxWidth().clickable { sampleExpanded = true }
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { sampleExpanded = true }
                             )
-                            Box(Modifier.matchParentSize().clickable { sampleExpanded = true })
+                            Box(
+                                Modifier
+                                    .matchParentSize()
+                                    .clickable { sampleExpanded = true })
                             DropdownMenu(
                                 expanded = sampleExpanded,
                                 onDismissRequest = { sampleExpanded = false }
@@ -520,11 +591,19 @@ fun EditSlotDialog(
                         }
 
                         Spacer(Modifier.height(16.dp))
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(
+                                alpha = 0.5f
+                            )
+                        )
                         Spacer(Modifier.height(16.dp))
 
                         // --- SECTION: ACTIONS ---
-                        Text("Actions", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            "Actions",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                         Spacer(Modifier.height(12.dp))
 
                         // 2x2 Grid for Actions (Color button removed)
@@ -533,7 +612,10 @@ fun EditSlotDialog(
                                 Button(
                                     onClick = { onEvent(MainEvent.CopySlot(slot)); onDismiss() },
                                     Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                    ),
                                     shape = RoundedCornerShape(8.dp)
                                 ) { Text("Copy") }
                                 Button(
@@ -542,7 +624,10 @@ fun EditSlotDialog(
                                         onDismiss() // Close dialog to prevent stale state overwrite
                                     },
                                     Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                    ),
                                     shape = RoundedCornerShape(8.dp)
                                 ) { Text("Paste") }
                             }
@@ -553,7 +638,10 @@ fun EditSlotDialog(
                                         onDismiss() // Close dialog to prevent stale state overwrite
                                     },
                                     Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                    ),
                                     shape = RoundedCornerShape(8.dp)
                                 ) { Text("Swap") }
                                 Button(
@@ -562,23 +650,36 @@ fun EditSlotDialog(
                                         onDismiss() // Close dialog to prevent stale state overwrite
                                     },
                                     Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                    ),
                                     shape = RoundedCornerShape(8.dp)
                                 ) { Text("Clear") }
                             }
                         }
 
                         Spacer(Modifier.height(24.dp))
-                        HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.surfaceVariant)
+                        HorizontalDivider(
+                            thickness = 2.dp,
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        )
                         Spacer(Modifier.height(16.dp))
                     }
 
                     // --- SECTION: BROWSER ---
                     item {
-                        Text("Performance Browser", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            "Performance Browser",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                         Spacer(Modifier.height(12.dp))
 
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             // Category Select
                             var catExpanded by remember { mutableStateOf(false) }
                             Box(Modifier.weight(1f)) {
@@ -587,32 +688,60 @@ fun EditSlotDialog(
                                     onValueChange = {},
                                     label = { Text("Category") },
                                     readOnly = true,
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = catExpanded) },
-                                    modifier = Modifier.fillMaxWidth().clickable { catExpanded = true }
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(
+                                            expanded = catExpanded
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { catExpanded = true }
                                 )
-                                Box(Modifier.matchParentSize().clickable { catExpanded = true })
-                                DropdownMenu(expanded = catExpanded, onDismissRequest = { catExpanded = false }) {
+                                Box(
+                                    Modifier
+                                        .matchParentSize()
+                                        .clickable { catExpanded = true })
+                                DropdownMenu(
+                                    expanded = catExpanded,
+                                    onDismissRequest = { catExpanded = false }) {
                                     uiState.performanceCategories.forEach { cat ->
-                                        DropdownMenuItem(text = { Text(cat) }, onClick = { perfCategory = cat; catExpanded = false })
+                                        DropdownMenuItem(
+                                            text = { Text(cat) },
+                                            onClick = { perfCategory = cat; catExpanded = false })
                                     }
                                 }
                             }
                             // Bank Select
                             var bankExpanded by remember { mutableStateOf(false) }
                             Box(Modifier.weight(1f)) {
-                                val bankName = uiState.performanceBanks.getOrNull(perfBankIndex)?.name ?: "Select Bank"
+                                val bankName =
+                                    uiState.performanceBanks.getOrNull(perfBankIndex)?.name
+                                        ?: "Select Bank"
                                 OutlinedTextField(
                                     value = bankName,
                                     onValueChange = {},
                                     label = { Text("Bank") },
                                     readOnly = true,
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = bankExpanded) },
-                                    modifier = Modifier.fillMaxWidth().clickable { bankExpanded = true }
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(
+                                            expanded = bankExpanded
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { bankExpanded = true }
                                 )
-                                Box(Modifier.matchParentSize().clickable { bankExpanded = true })
-                                DropdownMenu(expanded = bankExpanded, onDismissRequest = { bankExpanded = false }) {
+                                Box(
+                                    Modifier
+                                        .matchParentSize()
+                                        .clickable { bankExpanded = true })
+                                DropdownMenu(
+                                    expanded = bankExpanded,
+                                    onDismissRequest = { bankExpanded = false }) {
                                     uiState.performanceBanks.forEachIndexed { idx, bank ->
-                                        DropdownMenuItem(text = { Text(bank.name) }, onClick = { perfBankIndex = idx; bankExpanded = false })
+                                        DropdownMenuItem(
+                                            text = { Text(bank.name) },
+                                            onClick = { perfBankIndex = idx; bankExpanded = false })
                                     }
                                 }
                             }
@@ -630,7 +759,12 @@ fun EditSlotDialog(
                     }
 
                     // Performance List
-                    items(uiState.performances.filter { it.name.contains(perfSearch, true) }) { perf ->
+                    items(uiState.performances.filter {
+                        it.name.contains(
+                            perfSearch,
+                            true
+                        )
+                    }) { perf ->
                         val isSelected = uiState.slotToEditColor?.performanceName == perf.name
                         Surface(
                             onClick = { onEvent(MainEvent.SelectPerformance(perf)) },
@@ -645,7 +779,11 @@ fun EditSlotDialog(
                                 )
                             }
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(
+                                alpha = 0.3f
+                            )
+                        )
                     }
                 }
 
@@ -659,7 +797,8 @@ fun EditSlotDialog(
                             assignedSample = assignedSample,
                             color = slotColorHex,
                             volume = volume.toInt(), // Preserves existing volume
-                            performanceName = uiState.slotToEditColor?.performanceName ?: slot.performanceName,
+                            performanceName = uiState.slotToEditColor?.performanceName
+                                ?: slot.performanceName,
                             msb = uiState.slotToEditColor?.msb ?: slot.msb,
                             lsb = uiState.slotToEditColor?.lsb ?: slot.lsb,
                             pc = uiState.slotToEditColor?.pc ?: slot.pc
@@ -693,9 +832,13 @@ fun AudioLibraryDialog(
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxHeight(0.8f)
         ) {
-            Column {
+            Column(Modifier.fillMaxSize()) {
                 DialogHeader("Audio Library", onClose = onDismiss)
-                Column(Modifier.padding(16.dp)) {
+                Column(
+                    Modifier
+                        .padding(16.dp)
+                        .weight(1f) // Ensures list takes up available space
+                ) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -709,7 +852,11 @@ fun AudioLibraryDialog(
                     LazyColumn(
                         Modifier
                             .weight(1f)
-                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(4.dp))
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant,
+                                RoundedCornerShape(4.dp)
+                            )
                     ) {
                         items(filteredList) { item ->
                             Surface(
@@ -719,24 +866,35 @@ fun AudioLibraryDialog(
                             ) {
                                 Text(item.name, modifier = Modifier.padding(12.dp))
                             }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(
+                                    alpha = 0.3f
+                                )
+                            )
                         }
                     }
                     Spacer(Modifier.height(12.dp))
 
-                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Button(onClick = onAddFile) { Text("Add File") }
                         Button(
                             onClick = { selectedItem?.let { onDelete(it); selectedItem = null } },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            ),
                             enabled = selectedItem != null
                         ) { Text("Delete") }
                     }
                 }
                 DialogFooter(
                     onCancel = onDismiss,
-                    onSave = { selectedItem?.let { onSelect(it); onDismiss() } },
-                    saveLabel = "Select"
+                    onSave = { selectedItem?.let { onSelect(it) } }, // Logic fix: Let onSelect (and VM) handle closure
+                    saveLabel = "Select",
+                    isSaveEnabled = selectedItem != null // Logic fix: Disable until selected
                 )
             }
         }
@@ -796,7 +954,10 @@ fun HandleDialogs(
     }
 
     uiState.slotToSwap?.let { slot ->
-        val currentPageSlots = uiState.patchData.banks.getOrNull(uiState.settings.currentBankIndex)?.pages?.getOrNull(uiState.settings.currentPageIndex)?.slots ?: emptyList()
+        val currentPageSlots =
+            uiState.patchData.banks.getOrNull(uiState.settings.currentBankIndex)?.pages?.getOrNull(
+                uiState.settings.currentPageIndex
+            )?.slots ?: emptyList()
         SwapDialog(
             currentPageSlots,
             slot,

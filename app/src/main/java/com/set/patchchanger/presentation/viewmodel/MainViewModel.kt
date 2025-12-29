@@ -50,9 +50,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -405,6 +402,7 @@ class MainViewModel @Inject constructor(
                         performanceSearchQuery = event.query
                     )
                 }
+
                 else -> {}
             }
         }

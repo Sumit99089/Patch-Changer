@@ -163,18 +163,19 @@ fun PatchGrid(
             val width = with(density) { bounds.width.toDp() }
             val height = with(density) { bounds.height.toDp() }
 
-            Box(modifier = Modifier
-                .zIndex(10f)
-                .offset {
-                    val topLeft = bounds.topLeft - gridOffset
-                    IntOffset(
-                        (topLeft.x + dragState.dragOffset.x).roundToInt(),
-                        (topLeft.y + dragState.dragOffset.y).roundToInt()
-                    )
-                }
-                .width(width)
-                .height(height)
-                .graphicsLayer { alpha = 0.8f; scaleX = 1.05f; scaleY = 1.05f }) {
+            Box(
+                modifier = Modifier
+                    .zIndex(10f)
+                    .offset {
+                        val topLeft = bounds.topLeft - gridOffset
+                        IntOffset(
+                            (topLeft.x + dragState.dragOffset.x).roundToInt(),
+                            (topLeft.y + dragState.dragOffset.y).roundToInt()
+                        )
+                    }
+                    .width(width)
+                    .height(height)
+                    .graphicsLayer { alpha = 0.8f; scaleX = 1.05f; scaleY = 1.05f }) {
                 PatchSlotCard(slot, emptySet(), isEditMode, false, false, Modifier.fillMaxSize())
             }
         }
@@ -286,14 +287,15 @@ fun PatchSlotCard(
     )
 
     // REPLACED Card with Box for precise alignment control
-    Box(modifier = modifier
-        .graphicsLayer {
-            alpha = if (isBeingDragged) 0f else 1f
-            scaleX = scale
-            scaleY = scale
-        }
-        .clip(RoundedCornerShape(6.dp))
-        .background(gapBlinkColor) // The "Gap" color (animated)
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                alpha = if (isBeingDragged) 0f else 1f
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(6.dp))
+            .background(gapBlinkColor) // The "Gap" color (animated)
         // Draw border on the Outer Box
         .border(
             width = borderWidth, color = borderColor, shape = RoundedCornerShape(6.dp)
