@@ -122,6 +122,7 @@ fun MainScreenContent(
                                     currentBankIndex = uiState.settings.currentBankIndex,
                                     currentPageIndex = uiState.settings.currentPageIndex,
                                     playingSampleIds = uiState.playingSampleIds,
+                                    blinkingErrorSlots = uiState.blinkingErrorSlots,
                                     isEditMode = isEditMode,
                                     onSlotClick = { slot ->
                                         viewModel.onEvent(MainEvent.SelectSlot(slot.id))

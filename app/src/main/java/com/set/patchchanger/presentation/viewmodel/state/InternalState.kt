@@ -23,6 +23,9 @@ data class InternalState(
     val slotToEditColor: PatchSlot? = null,
     val sampleToEditColor: SamplePad? = null,
 
+    // Tracks slots that are blinking because they have no audio assigned
+    val blinkingErrorSlots: Set<Int> = emptySet(),
+
     // Performance Browser State
     val showPerformanceBrowser: Boolean = false,
     val slotToEditPerformance: PatchSlot? = null,

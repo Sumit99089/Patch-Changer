@@ -17,6 +17,7 @@ sealed class MainUiState {
         val settings: AppSettings,
         val samples: List<SamplePad>,
         val playingSampleIds: Set<Int> = emptySet(), // Added for animation
+        val blinkingErrorSlots: Set<Int> = emptySet(), // Slots blinking due to no audio
         val midiState: MidiConnectionState,
         val audioLibrary: List<AudioLibraryItem>,
         // Search State

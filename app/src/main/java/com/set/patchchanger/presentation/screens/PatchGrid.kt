@@ -73,6 +73,7 @@ fun PatchGrid(
     currentBankIndex: Int,
     currentPageIndex: Int,
     playingSampleIds: Set<Int>,
+    blinkingErrorSlots: Set<Int>,
     isEditMode: Boolean,
     onSlotClick: (PatchSlot) -> Unit,
     onSlotEdit: (PatchSlot) -> Unit,
@@ -108,6 +109,7 @@ fun PatchGrid(
                             PatchSlotItem(
                                 slot = slot,
                                 playingSampleIds = playingSampleIds,
+                                blinkingErrorSlots = blinkingErrorSlots,
                                 isEditMode = isEditMode,
                                 isBeingDragged = dragState.draggedSlot?.id == slot.id,
                                 isDropTarget = dragState.dropTargetSlot?.id == slot.id,
@@ -176,7 +178,7 @@ fun PatchGrid(
                     .width(width)
                     .height(height)
                     .graphicsLayer { alpha = 0.8f; scaleX = 1.05f; scaleY = 1.05f }) {
-                PatchSlotCard(slot, emptySet(), isEditMode, false, false, Modifier.fillMaxSize())
+                PatchSlotCard(slot, emptySet(), emptySet(), isEditMode, false, false, Modifier.fillMaxSize())
             }
         }
     }
@@ -186,6 +188,7 @@ fun PatchGrid(
 fun RowScope.PatchSlotItem(
     slot: PatchSlot,
     playingSampleIds: Set<Int>,
+    blinkingErrorSlots: Set<Int>,
     isEditMode: Boolean,
     isBeingDragged: Boolean,
     isDropTarget: Boolean,
@@ -199,6 +202,7 @@ fun RowScope.PatchSlotItem(
     PatchSlotCard(
         slot = slot,
         playingSampleIds = playingSampleIds,
+        blinkingErrorSlots = blinkingErrorSlots,
         isEditMode = isEditMode,
         isBeingDragged = isBeingDragged,
         isDropTarget = isDropTarget,
@@ -232,6 +236,7 @@ fun RowScope.PatchSlotItem(
 fun PatchSlotCard(
     slot: PatchSlot,
     playingSampleIds: Set<Int>,
+    blinkingErrorSlots: Set<Int>,
     isEditMode: Boolean,
     isBeingDragged: Boolean,
     isDropTarget: Boolean,
@@ -257,10 +262,11 @@ fun PatchSlotCard(
 
     // 3. Logic for Border Width and Color
     val isPlaying = playingSampleIds.contains(slot.assignedSample)
+    val isErrorBlinking = blinkingErrorSlots.contains(slot.id)
 
     val (borderColor, borderWidth) = when {
         isDropTarget -> ColorYellow to 3.dp
-        slot.selected && isPlaying && !isEditMode -> blinkColor to 4.dp
+        (slot.selected && isPlaying && !isEditMode) || (isErrorBlinking && !isEditMode) -> blinkColor to 4.dp
         slot.selected && !isEditMode -> bgColor to 4.dp
         isEditMode -> Color.White.copy(alpha = 0.3f) to 1.dp
         else -> Color.Transparent to 0.dp
@@ -269,7 +275,7 @@ fun PatchSlotCard(
     // Animation for the "Black Gap"
     val gapBlinkColor by infiniteTransition.animateColor(
         initialValue = Color.Black,
-        targetValue = if (isPlaying) Color.Gray else Color.Black,
+        targetValue = if (isPlaying || isErrorBlinking) Color.Gray else Color.Black,
         animationSpec = infiniteRepeatable(
             animation = tween(400, easing = LinearEasing), repeatMode = RepeatMode.Reverse
         ),
@@ -296,10 +302,10 @@ fun PatchSlotCard(
             }
             .clip(RoundedCornerShape(6.dp))
             .background(gapBlinkColor) // The "Gap" color (animated)
-        // Draw border on the Outer Box
-        .border(
-            width = borderWidth, color = borderColor, shape = RoundedCornerShape(6.dp)
-        )) {
+            // Draw border on the Outer Box
+            .border(
+                width = borderWidth, color = borderColor, shape = RoundedCornerShape(6.dp)
+            )) {
         // Inner Box: The actual button content
         Box(
             modifier = Modifier

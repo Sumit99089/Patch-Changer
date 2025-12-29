@@ -114,6 +114,7 @@ class MainViewModel @Inject constructor(
                 settings = data.settings,
                 samples = data.samples,
                 playingSampleIds = data.playingSamples,
+                blinkingErrorSlots = internal.blinkingErrorSlots,
                 midiState = data.midiState,
                 audioLibrary = data.library,
                 searchQuery = internal.searchQuery,
@@ -155,7 +156,14 @@ class MainViewModel @Inject constructor(
             when (event) {
                 is MainEvent.SelectSlot -> {
                     val slot = selectPatchUseCase(event.slotId)
-                    slot?.assignedSample?.let { if (it >= 0) sampleRepository.triggerSampleAudio(it) }
+                    if (slot != null) {
+                        if (slot.assignedSample >= 0) {
+                            sampleRepository.triggerSampleAudio(slot.assignedSample)
+                            _internalState.update { it.copy(blinkingErrorSlots = it.blinkingErrorSlots - slot.id) }
+                        } else {
+                            _internalState.update { it.copy(blinkingErrorSlots = it.blinkingErrorSlots + slot.id) }
+                        }
+                    }
                 }
 
                 is MainEvent.TriggerSample -> sampleRepository.triggerSampleAudio(event.sampleId)
