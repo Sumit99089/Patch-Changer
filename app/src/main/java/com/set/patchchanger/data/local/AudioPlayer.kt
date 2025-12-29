@@ -16,11 +16,27 @@ class AudioPlayer @Inject constructor(
     // Map of SampleID to its dedicated ExoPlayer instance
     private val playerPool = mutableMapOf<Int, ExoPlayer>()
 
+    // Callback to notify when a sample finishes playing naturally
+    private var onPlaybackEnded: ((Int) -> Unit)? = null
+
+    fun setPlaybackEndedListener(listener: (Int) -> Unit) {
+        onPlaybackEnded = listener
+    }
+
     private fun getOrCreatePlayer(sampleId: Int): ExoPlayer {
         return playerPool.getOrPut(sampleId) {
             ExoPlayer.Builder(context).build().apply {
                 // This ensures the audio starts exactly when the previous one ends
                 repeatMode = Player.REPEAT_MODE_OFF
+
+                // Add listener to detect when playback finishes naturally
+                addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        if (playbackState == Player.STATE_ENDED) {
+                            onPlaybackEnded?.invoke(sampleId)
+                        }
+                    }
+                })
             }
         }
     }

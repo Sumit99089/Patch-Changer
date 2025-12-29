@@ -1,8 +1,8 @@
 package com.set.patchchanger.presentation.screens
 
-import androidx.compose.animation.animateColor
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -208,7 +208,6 @@ fun RowScope.SamplePadsGroup(
     }
 }
 
-
 @Composable
 fun DataButton(
     text: String,
@@ -261,21 +260,25 @@ fun RowScope.SampleButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Infinite transition for border blinking
-    val infiniteTransition = rememberInfiniteTransition(label = "sample_blink")
-    val blinkBorderColor by infiniteTransition.animateColor(
-        initialValue = MaterialTheme.colorScheme.outline,
-        targetValue = Color(0xFF39FF14), // Bright Green
+    // Elegant Pulse Animation for the Border
+    val infiniteTransition = rememberInfiniteTransition(label = "sample_pulse")
+    val animatedBorderAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(400, easing = LinearEasing),
+            animation = tween(durationMillis = 800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "border_blink"
+        label = "border_alpha"
     )
 
-    // Apply blinking ONLY if playing
+    // A soft accent green that indicates 'Playing' without being harsh
+    val activeBorderColor = Color.Green// Soft Accent Green
+
+    // The blinking stops immediately when isPlaying is false because the if-else block
+    // directly switches to the static border.
     val borderStroke = if (isPlaying) {
-        BorderStroke(3.dp, blinkBorderColor)
+        BorderStroke(3.dp, activeBorderColor.copy(alpha = animatedBorderAlpha))
     } else {
         BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     }

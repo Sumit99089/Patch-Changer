@@ -40,6 +40,11 @@ class SampleRepositoryImpl @Inject constructor(
     override fun observePlayingStates(): Flow<Set<Int>> = _playingSampleIds.asStateFlow()
 
     init {
+        // Register listener to update state when audio finishes naturally
+        audioPlayer.setPlaybackEndedListener { sampleId ->
+            setPlayingState(sampleId, false)
+        }
+
         scope.launch(Dispatchers.IO) {
             sampleDao.observeAllSamples().collect { entities ->
                 if (entities.isEmpty()) {
@@ -242,17 +247,3 @@ class SampleRepositoryImpl @Inject constructor(
     private fun AudioLibraryItem.toEntity() =
         AudioLibraryEntity(name, filePath, sizeBytes, durationMs, addedTimestamp)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

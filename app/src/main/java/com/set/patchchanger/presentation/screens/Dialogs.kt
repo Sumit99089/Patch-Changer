@@ -881,6 +881,10 @@ fun AudioLibraryDialog(
                     ) {
                         Button(onClick = onAddFile) { Text("Add File") }
                         Button(
+                            onClick = { selectedItem?.let { onSelect(it) } },
+                            enabled = selectedItem != null
+                        ) { Text("Select") }
+                        Button(
                             onClick = { selectedItem?.let { onDelete(it); selectedItem = null } },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -890,12 +894,6 @@ fun AudioLibraryDialog(
                         ) { Text("Delete") }
                     }
                 }
-                DialogFooter(
-                    onCancel = onDismiss,
-                    onSave = { selectedItem?.let { onSelect(it) } }, // Logic fix: Let onSelect (and VM) handle closure
-                    saveLabel = "Select",
-                    isSaveEnabled = selectedItem != null // Logic fix: Disable until selected
-                )
             }
         }
     }
