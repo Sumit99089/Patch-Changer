@@ -41,37 +41,31 @@ android {
 }
 
 dependencies {
-    // GSON Converter
+    // GSON (Keep for local Import/Export)
     implementation(libs.gson)
+
     //Dagger-Hilt DI
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+
     //Material3 Extended pack
     implementation(libs.material.icons.extended)
+
     // Room
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
-    ksp(libs.room.compiler) // Changed from kapt to ksp
+    ksp(libs.room.compiler)
+
     //Coroutines
     implementation(libs.kotlinx.coroutines.core)
-    // Coroutines for Android (for Dispatchers.Main, lifecycle, etc.)
+    // Coroutines for Android
     implementation(libs.kotlinx.coroutines.android)
+
     // DataStore (Preferences)
     implementation(libs.androidx.datastore.preferences)
-    // (Optional) Core DataStore library — only needed for advanced usage
-    implementation(libs.androidx.datastore.core)
-    // Retrofit & Networking
-    implementation(libs.retrofit)
-    implementation(libs.converter.gson)
-    implementation(libs.logging.interceptor)
-    // Image Loading (Profile Pictures)
-    implementation(libs.coil.compose)
-    // Razorpay
-    implementation(libs.checkout)
-    // Google Sign In (Cred Manager recommended for newer apps, but keeping it simple)
-    implementation(libs.play.services.auth)
 
+    // Media Player
     implementation(libs.androidx.media3.exoplayer)
 
     implementation(libs.androidx.core.ktx)
@@ -82,6 +76,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
