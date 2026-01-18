@@ -57,18 +57,19 @@ fun MainScreenContent(
     val snackbarHostState = remember { SnackbarHostState() }
     var isEditMode by remember { mutableStateOf(false) }
 
+    // --- CRITICAL FIX START ---
+    // We removed the 'name' parameter and the 'getFileName' call.
+    // The ViewModel now handles the name resolution internally.
     val audioPickerLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            uri?.let { viewModel.onEvent(MainEvent.SetSampleFile(it, viewModel.getFileName(it))) }
+            uri?.let { viewModel.onEvent(MainEvent.SetSampleFile(it)) }
         }
     val libraryPickerLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            uri?.let {
-                viewModel.onEvent(
-                    MainEvent.AddFileToLibrary(it, viewModel.getFileName(it))
-                )
-            }
+            uri?.let { viewModel.onEvent(MainEvent.AddFileToLibrary(it)) }
         }
+    // --- CRITICAL FIX END ---
+
     val saveFileLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
             uri?.let { viewModel.onEvent(MainEvent.PerformExport(it)) }

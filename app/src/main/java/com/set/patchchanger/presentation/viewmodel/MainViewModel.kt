@@ -1,8 +1,5 @@
 package com.set.patchchanger.presentation.viewmodel
 
-import android.content.Context
-import android.net.Uri
-import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.set.patchchanger.data.local.AudioPlayer
@@ -33,7 +30,6 @@ import com.set.patchchanger.presentation.viewmodel.state.InternalState
 import com.set.patchchanger.presentation.viewmodel.state.MainUiState
 import com.set.patchchanger.ui.theme.getDefaultColors
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,8 +44,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import javax.inject.Inject
 
 @HiltViewModel
@@ -68,8 +62,7 @@ class MainViewModel @Inject constructor(
     private val importDataUseCase: ImportDataUseCase,
     private val getPerformancesUseCase: GetPerformancesUseCase,
     private val audioPlayer: AudioPlayer,
-    private val fileManager: FileManager,
-    @param:ApplicationContext private val context: Context
+    private val fileManager: FileManager
 ) : ViewModel() {
 
     private val _internalState = MutableStateFlow(InternalState())
@@ -159,10 +152,8 @@ class MainViewModel @Inject constructor(
                     if (slot != null) {
                         if (slot.assignedSample >= 0) {
                             sampleRepository.triggerSampleAudio(slot.assignedSample)
-                            // CHANGED: Clear ALL previous error blinks when a valid slot is selected
                             _internalState.update { it.copy(blinkingErrorSlots = emptySet()) }
                         } else {
-                            // CHANGED: Clear previous errors and set ONLY this one as the error blink
                             _internalState.update { it.copy(blinkingErrorSlots = setOf(slot.id)) }
                         }
                     }
@@ -212,36 +203,28 @@ class MainViewModel @Inject constructor(
                 }
 
                 is MainEvent.RequestExportData -> {
-                    // Always request user to pick a location and name for the backup
                     _events.emit(UiEvent.RequestSaveFile)
                 }
 
                 is MainEvent.RequestImportData -> _events.emit(UiEvent.RequestLoadFile)
+
                 is MainEvent.PerformExport -> {
                     val jsonData = exportDataUseCase()
-                    try {
-                        withContext(Dispatchers.IO) {
-                            context.contentResolver.openOutputStream(event.uri)
-                                ?.use { it.write(jsonData.toByteArray()) }
-                        }
+                    val success = fileManager.writeTextToUri(event.uri, jsonData)
+                    if (success) {
                         _events.emit(UiEvent.ShowMessage("Data saved successfully"))
-                    } catch (e: Exception) {
-                        _events.emit(UiEvent.ShowMessage("Failed to save: ${e.message}"))
+                    } else {
+                        _events.emit(UiEvent.ShowMessage("Failed to save data"))
                     }
                 }
 
                 is MainEvent.PerformImport -> {
-                    try {
-                        val jsonData = withContext(Dispatchers.IO) {
-                            context.contentResolver.openInputStream(event.uri)
-                                ?.use { BufferedReader(InputStreamReader(it)).readText() }
-                        }
-                        if (jsonData != null) {
-                            val success = importDataUseCase(jsonData)
-                            _events.emit(UiEvent.ShowMessage(if (success) "Data imported successfully" else "Failed to parse data"))
-                        }
-                    } catch (e: Exception) {
-                        _events.emit(UiEvent.ShowMessage("Failed to read file: ${e.message}"))
+                    val jsonData = fileManager.readTextFromUri(event.uri)
+                    if (jsonData != null) {
+                        val success = importDataUseCase(jsonData)
+                        _events.emit(UiEvent.ShowMessage(if (success) "Data imported successfully" else "Failed to parse data"))
+                    } else {
+                        _events.emit(UiEvent.ShowMessage("Failed to read file"))
                     }
                 }
 
@@ -317,22 +300,28 @@ class MainViewModel @Inject constructor(
                 is MainEvent.LoadSampleFile -> _events.emit(UiEvent.RequestFilePicker)
                 is MainEvent.SetSampleFile -> {
                     val sampleId = _internalState.value.editingSample?.id ?: return@launch
-                    val fileName =
-                        sampleRepository.saveSampleAudioFromUri(sampleId, event.uri, event.name)
+                    // CORRECTION: Resolve name here using FileManager
+                    val name = fileManager.getFileNameFromUri(event.uri)
+                    val fileName = withContext(Dispatchers.IO) {
+                        sampleRepository.saveSampleAudioFromUri(sampleId, event.uri, name)
+                    }
                     _internalState.update {
                         it.copy(
                             editingSample = it.editingSample?.copy(
                                 audioFileName = fileName,
-                                sourceName = event.name,
-                                // UPDATES UI NAME IMMEDIATELY HERE
-                                name = event.name.substringBeforeLast('.')
+                                sourceName = name,
+                                name = name.substringBeforeLast('.')
                             )
                         )
                     }
                 }
 
                 is MainEvent.AddFileToLibrary -> {
-                    val item = audioLibraryRepository.addAudioFile(event.uri, event.name)
+                    // CORRECTION: Resolve name here using FileManager
+                    val name = fileManager.getFileNameFromUri(event.uri)
+                    val item = withContext(Dispatchers.IO) {
+                        audioLibraryRepository.addAudioFile(event.uri, name)
+                    }
                     _events.emit(UiEvent.ShowMessage("Added '${item.name}' to library"))
                 }
 
@@ -340,8 +329,9 @@ class MainViewModel @Inject constructor(
                 is MainEvent.SelectSampleFromLibrary -> {
                     val sampleId = _internalState.value.audioLibrarySampleIdTarget
                     if (sampleId != -1) {
-                        val fileName =
+                        val fileName = withContext(Dispatchers.IO) {
                             sampleRepository.saveSampleAudioFromLibrary(sampleId, event.item)
+                        }
                         _internalState.update {
                             it.copy(
                                 editingSample = it.editingSample?.copy(
@@ -418,21 +408,8 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun getFileName(uri: Uri): String {
-        var name = "unknown"
-        context.contentResolver.query(uri, null, null, null, null)?.use {
-            if (it.moveToFirst()) {
-                val idx = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (idx != -1) name = it.getString(idx)
-            }
-        }
-        return name
-    }
-
     override fun onCleared() {
         super.onCleared()
-        // This is the built-in lifecycle method that runs automatically
-        // when the ViewModel is destroyed.
         midiRepository.cleanup()
         sampleRepository.cleanup()
         audioPlayer.cleanup()

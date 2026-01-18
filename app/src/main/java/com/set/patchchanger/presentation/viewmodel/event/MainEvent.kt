@@ -24,7 +24,7 @@ sealed class MainEvent {
 
     // Theme
     data class UpdateTheme(val theme: AppTheme) : MainEvent()
-    object CycleTheme : MainEvent() // <--- NEW: Logic to cycle themes like HTML
+    object CycleTheme : MainEvent()
 
     // Naming
     data class UpdateBankName(val index: Int, val name: String) : MainEvent()
@@ -68,8 +68,11 @@ sealed class MainEvent {
     data class UpdateSample(val sample: SamplePad) : MainEvent()
     data class ClearSampleAudio(val sampleId: Int) : MainEvent()
     object LoadSampleFile : MainEvent()
-    data class SetSampleFile(val uri: Uri, val name: String) : MainEvent()
-    data class AddFileToLibrary(val uri: Uri, val name: String) : MainEvent()
+
+    // CORRECTION: Removed 'name' parameter. ViewModel will resolve it.
+    data class SetSampleFile(val uri: Uri) : MainEvent()
+    data class AddFileToLibrary(val uri: Uri) : MainEvent()
+
     data class DeleteFromAudioLibrary(val item: AudioLibraryItem) : MainEvent()
     data class SelectSampleFromLibrary(val item: AudioLibraryItem) : MainEvent()
     data class TriggerSample(val sampleId: Int) : MainEvent()

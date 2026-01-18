@@ -1,66 +1,68 @@
 package com.set.patchchanger.data.local
 
-import android.content.ContentValues
 import android.content.Context
-import android.os.Environment
-import android.provider.MediaStore
+import android.net.Uri
+import android.provider.OpenableColumns
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import javax.inject.Inject
 
 class FileManager @Inject constructor(
-    @param:ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context
 ) {
-    private val folderName = "PatchChanger"
-
-    // Save JSON to Documents/PatchChanger/ via MediaStore (Works on Android 10/11/12+)
-    fun saveJsonToDocuments(fileName: String, jsonContent: String): Boolean {
-        return try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                val values = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
-                    put(
-                        MediaStore.MediaColumns.RELATIVE_PATH,
-                        "${Environment.DIRECTORY_DOCUMENTS}/$folderName"
-                    )
-                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+    /**
+     * Writes text data to the specified URI using the ContentResolver (SAF).
+     */
+    suspend fun writeTextToUri(uri: Uri, text: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(text.toByteArray())
                 }
-
-                val resolver = context.contentResolver
-                val uri = resolver.insert(MediaStore.Files.getContentUri("external"), values)
-
-                uri?.let {
-                    resolver.openOutputStream(it)?.use { stream ->
-                        stream.write(jsonContent.toByteArray())
-                    }
-                    values.clear()
-                    values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                    resolver.update(it, values, null, null)
-                    true
-                } ?: false
-            } else {
-                // Legacy approach for Android 9 and below
-                val docsDir =
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-                val appDir = File(docsDir, folderName)
-                if (!appDir.exists()) appDir.mkdirs()
-                val file = File(appDir, fileName)
-                file.writeText(jsonContent)
                 true
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
         }
     }
 
     /**
-     * Reads content from a File object.
-     * NOTE: This is only used for files in internal app storage (cache/filesDir).
-     * Do not use for external storage files on Android 11+.
+     * Reads text content from the specified URI using the ContentResolver (SAF).
      */
-    fun readFileContent(file: File): String {
-        return file.readText()
+    suspend fun readTextFromUri(uri: Uri): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    BufferedReader(InputStreamReader(stream)).readText()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    /**
+     * Resolves the display name of a file from its URI.
+     */
+    suspend fun getFileNameFromUri(uri: Uri): String {
+        return withContext(Dispatchers.IO) {
+            var name = "unknown"
+            try {
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (index != -1) name = cursor.getString(index)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            name
+        }
     }
 }
