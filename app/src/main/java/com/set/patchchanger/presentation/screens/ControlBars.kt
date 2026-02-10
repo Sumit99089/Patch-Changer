@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,6 +62,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
+import com.set.patchchanger.R
 import com.set.patchchanger.domain.model.MidiConnectionState
 import com.set.patchchanger.domain.model.SearchResult
 import com.set.patchchanger.presentation.viewmodel.event.MainEvent
@@ -180,10 +182,10 @@ fun AppTopBarPortrait(
 fun TopBarTitle() {
     Column(modifier = Modifier.wrapContentWidth()) {
         Text(
-            text = "Live Set Patch Changer",
+            text = stringResource(R.string.app_name),
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
-            fontSize = 18.sp
+            fontSize = 15.sp
         )
     }
 }

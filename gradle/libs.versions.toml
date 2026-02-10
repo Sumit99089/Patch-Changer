@@ -10,16 +10,16 @@ espressoCore = "3.7.0"
 kotlinxCoroutinesCore = "1.10.2"
 kotlinxCoroutinesAndroid = "1.10.2"
 lifecycleRuntimeKtx = "2.10.0"
-activityCompose = "1.12.2"
-composeBom = "2026.01.00"
+activityCompose = "1.12.3"
+composeBom = "2026.01.01"
 # Hilt
-hilt = "2.57.2"
+hilt = "2.59"
 # KSP
 ksp = "2.3.2"
 #Mateial Icons Extended Pack
 materialIconsExtended = "1.7.8"
 #Room Db
-media3Exoplayer = "1.9.0"
+media3Exoplayer = "1.9.2"
 room = "2.8.4"
 
 [libraries]

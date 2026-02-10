@@ -1,4 +1,3 @@
 <resources>
-    <string name="app_name">Patch Changer</string>
-    <string name="user">USER</string>
+    <string name="app_name">MIDI Patch Changer &amp; Looper</string>
 </resources>

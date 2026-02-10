@@ -17,8 +17,8 @@ android {
         applicationId = "com.set.patchcahnger"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
-        versionName = "3.0"
+        versionCode = 6
+        versionName = "prod1.1(09.02.26)"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

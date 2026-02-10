@@ -84,7 +84,7 @@ fun MainScreenContent(
             when (event) {
                 is UiEvent.ShowMessage -> snackbarHostState.showSnackbar(event.message)
                 is UiEvent.RequestFilePicker -> audioPickerLauncher.launch("audio/*")
-                is UiEvent.RequestSaveFile -> saveFileLauncher.launch("Live Set Patch Changer Backup.json")
+                is UiEvent.RequestSaveFile -> saveFileLauncher.launch("MIDI Patch Changer & Looper.json")
                 is UiEvent.RequestLoadFile -> loadFileLauncher.launch(arrayOf("application/json"))
             }
         }
